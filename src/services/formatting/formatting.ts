@@ -121,6 +121,11 @@ namespace ts.formatting {
         return formatSpan(span, sourceFile, options, rulesProvider, FormattingRequestKind.FormatSelection);
     }
 
+    /* @internal */
+    export function formatNode(node: Node, text: string, rulesProvider: RulesProvider, options: FormatCodeSettings): TextChange[] {
+        throw notImplemented();
+    }
+
     function formatOutermostParent(position: number, expectedLastToken: SyntaxKind, sourceFile: SourceFile, options: FormatCodeSettings, rulesProvider: RulesProvider, requestKind: FormattingRequestKind): TextChange[] {
         const parent = findOutermostParent(position, expectedLastToken, sourceFile);
         if (!parent) {

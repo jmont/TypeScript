@@ -62,6 +62,7 @@
         "shims.ts",
         "signatureHelp.ts",
         "symbolDisplay.ts",
+        "treeFormatter.ts",
         "formatting/formatting.ts",
         "formatting/formattingContext.ts",
         "formatting/formattingRequestKind.ts",

@@ -2,6 +2,10 @@
 /// <reference path="..\harness.ts" />
 
 namespace ts {
+    interface MapConstructor {
+        new (): Map<any>;
+    }
+    declare const Map: MapConstructor;  
     describe("PrinterAPI", () => {
         function makePrintsCorrectly(prefix: string) {
             return function printsCorrectly(name: string, options: PrinterOptions, printCallback: (printer: Printer) => string) {
@@ -92,6 +96,56 @@ namespace ts {
                 ])
             );
             printsCorrectly("class", {}, printer => printer.printNode(EmitHint.Unspecified, syntheticNode, sourceFile));
+        });
+
+        describe("print_mixed_content", () => {
+            const sourceFile = createSourceFile("source.ts",
+            `
+module M {
+    // comment 1
+    const x = 1;
+    
+    /**
+     * comment 2 line 1
+     * comment 2 line 2
+     */
+    function f() {
+        return 100;
+    }
+    const y = 2; // comment 3
+}
+            `, ScriptTarget.ES2015);
+            it("runs", () => {
+                debugger
+                const statements = (<ModuleBlock>(<ModuleDeclaration>sourceFile.statements[0]).body).statements;
+                const synthesizedNode = createModuleDeclaration(
+                    undefined,
+                    undefined,
+                    createIdentifier("M2"),
+                    createModuleBlock(statements));
+                const starts = new Map();
+                const ends = new Map();
+                const textWriter = createTextWriter("\n");
+                const printer = createPrinter({}, {
+                    onEmitNode(hint, node, printCallback) {
+                        starts.set(<any>node, textWriter.getTextPos());
+                        printCallback(hint, node);
+                        ends.set(<any>node, textWriter.getTextPos());
+                    }
+                });
+                printer.writeNode(EmitHint.Unspecified, synthesizedNode, sourceFile, textWriter);
+                const r = textWriter.getText();
+                const keys = starts.keys();
+                while (true) {
+                    const { value, done } = keys.next();
+                    if (done) {
+                        break;
+                    }
+                    const s = starts.get(value);
+                    const e = ends.get(value);
+                    console.log(`${s} - ${e}: ${ r.substring(s, e) }`);
+                }
+            });
         });
     });
 }
