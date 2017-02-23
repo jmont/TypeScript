@@ -122,7 +122,7 @@ namespace ts.formatting {
     }
 
     /* @internal */
-    export function formatNode(node: Node, text: string, rulesProvider: RulesProvider, options: FormatCodeSettings): TextChange[] {
+    export function formatNode(_node: Node, _text: string, _rulesProvider: RulesProvider, _options: FormatCodeSettings): TextChange[] {
         throw notImplemented();
     }
 
