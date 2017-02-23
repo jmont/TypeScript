@@ -17,15 +17,10 @@ namespace ts.treeFormatter {
     }
 
     export function format(node: Node, sourceFile: SourceFile, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings, newLine: NewLineKind): string {
-        const writer = new TextWriter();
-        const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, {
-            onEmitNode(hint, node, printCallback) {
-                setPos(node, writer.getPos());
-                printCallback(hint, node);
-                setEnd(node, writer.getPos());
-            }
-        });
+        const writer = createWriter();
+        const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
+
         const nonFormattedText = writer.getText();
         // TODO: set initial indentation
         let formattedText = nonFormattedText;
@@ -35,55 +30,46 @@ namespace ts.treeFormatter {
             formattedText = `${formattedText.substring(0, change.span.start)}${change.newText}${formattedText.substring(textSpanEnd(change.span))}`
         }
         return formattedText;
+
+        function createWriter(): EmitTextWriter & PrintHandlers {
+            let lastNonTriviaPosition = 0;
+            const writer: EmitTextWriter & PrintHandlers = createTextWriter(getNewLineCharacter(newLine));
+            const originalWrite = writer.write;
+            const originalWriteTextOfNode = writer.writeTextOfNode;
+            const originalRawWrite = writer.rawWrite;
+            const originalWriteLiteral = writer.writeLiteral;
+            writer.write = function(s) {
+                originalWrite.call(writer, s);
+                if (!isTrivia(s)) {
+                    lastNonTriviaPosition = writer.getTextPos();
+                }
+            }
+            writer.writeTextOfNode = function(text, node) {
+                originalWriteTextOfNode.call(writer, text, node);
+                lastNonTriviaPosition = writer.getTextPos();
+            }
+            writer.rawWrite = function(s) {
+                originalRawWrite.call(writer, s);
+                if (!isTrivia(s)) {
+                    lastNonTriviaPosition = writer.getTextPos();
+                }
+            }
+            writer.writeLiteral = function(l) {
+                originalWriteLiteral.call(writer, l);
+                if (!isTrivia(l)) {
+                    lastNonTriviaPosition = writer.getTextPos();
+                }
+            }
+            writer.onEmitNode = function(hint, node, printCallback) {
+                setPos(node, lastNonTriviaPosition);
+                printCallback(hint, node);
+                setEnd(node, lastNonTriviaPosition);
+            }
+            return writer;
+        }
     }
 
-    class TextWriter implements EmitTextWriter {
-
-        getPos(): number {
-            throw new Error('Method not implemented.');
-        }
-
-        write(s: string): void {
-            throw new Error('Method not implemented.');
-        }
-        writeTextOfNode(text: string, node: Node): void {
-            throw new Error('Method not implemented.');
-        }
-        writeLine(): void {
-            throw new Error('Method not implemented.');
-        }
-        increaseIndent(): void {
-            throw new Error('Method not implemented.');
-        }
-        decreaseIndent(): void {
-            throw new Error('Method not implemented.');
-        }
-        getText(): string {
-            throw new Error('Method not implemented.');
-        }
-        rawWrite(s: string): void {
-            throw new Error('Method not implemented.');
-        }
-        writeLiteral(s: string): void {
-            throw new Error('Method not implemented.');
-        }
-        getTextPos(): number {
-            throw new Error('Method not implemented.');
-        }
-        getLine(): number {
-            throw new Error('Method not implemented.');
-        }
-        getColumn(): number {
-            throw new Error('Method not implemented.');
-        }
-        getIndent(): number {
-            throw new Error('Method not implemented.');
-        }
-        isAtStartOfLine(): boolean {
-            throw new Error('Method not implemented.');
-        }
-        reset(): void {
-            throw new Error('Method not implemented.');
-        }
-    }
+    function isTrivia(s: string) {
+        return skipTrivia(s, 0) === s.length;
+    }  
 }
