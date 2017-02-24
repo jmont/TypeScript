@@ -1,5 +1,5 @@
 /* @internal */
-namespace ts.textChangePrinter {
+namespace ts.textChanges {
 
     function getPos(n: TextRange) {
         return (<any>n)["__pos"];
@@ -15,6 +15,26 @@ namespace ts.textChangePrinter {
 
     function setEnd(n: TextRange, end: number) {
         (<any>n)["__end"] = end;
+    }
+
+    export class ChangeTracker {
+        public removeNode(node: Node) {
+        }
+
+        public replaceNode(oldNode: Node, newNode: Node) {
+        }
+
+        public insertNode(node: Node, pos: number) {
+        }
+
+        public insertNodeAfter(node: Node, after: Node) {
+        }
+
+        public insertNodeBefore(node: Node, before: Node) {
+        }
+
+        public getChanges(): FileTextChanges[] {
+        }
     }
 
     export interface NonFormattedText {

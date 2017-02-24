@@ -137,7 +137,7 @@ namespace ts {
                 };
             }
 
-            function verifyPositions({text, node}: textChangePrinter.NonFormattedText): void {
+            function verifyPositions({text, node}: textChanges.NonFormattedText): void {
                 const nodeList = flattedNodes(node);
                 const sourceFile = createSourceFile("f.ts", text, ScriptTarget.ES2015);
                 const parsedNodeList = flattedNodes(sourceFile.statements[0]);
@@ -162,9 +162,9 @@ namespace ts {
             }
 
             function printNodeAndVerifyContent(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
-                const nonFormattedText = textChangePrinter.getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine);
+                const nonFormattedText = textChanges.getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine);
                 verifyPositions(nonFormattedText);
-                return textChangePrinter.formatNode(nonFormattedText, sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
+                return textChanges.formatNode(nonFormattedText, sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
             }
 
             it("can remove and insert nodes", () => {
@@ -251,7 +251,7 @@ namespace M
                         span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
                         newText: text2
                     });
-                    return textChangePrinter.applyChanges(sourceFile.text, changes);
+                    return textChanges.applyChanges(sourceFile.text, changes);
                 });
             });
         });
