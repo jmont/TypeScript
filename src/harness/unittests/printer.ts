@@ -138,9 +138,9 @@ namespace ts {
             }
 
             function verifyPositions({text, node}: textChangePrinter.NonFormattedText): void {
-                const nodeList = flatten(node);
+                const nodeList = flattedNodes(node);
                 const sourceFile = createSourceFile("f.ts", text, ScriptTarget.ES2015);
-                const parsedNodeList = flatten(sourceFile.statements[0]);
+                const parsedNodeList = flattedNodes(sourceFile.statements[0]);
                 Debug.assert(nodeList.length === parsedNodeList.length);
                 for (let i = 0; i < nodeList.length; i++) {
                     const left = nodeList[i];
@@ -149,31 +149,27 @@ namespace ts {
                     Debug.assert(left.end === right.end);
                 }
 
-                function flatten(n: Node) {
+                function flattedNodes(n: Node) {
                     const data: (Node | NodeArray<any>)[] = [];
                     walk(n);
                     return data;
 
-                    function walk(n: Node | Node[]) {
+                    function walk(n: Node | Node[]): void {
                         data.push(<any>n);
-                        if (isArray(n)) {
-                            n.forEach(walk);
-                        }
-                        else {
-                            forEachChild(n, walk, walk);
-                        }
+                        return isArray(n) ? forEach(n, walk) : forEachChild(n, walk, walk);
                     }
                 }
             }
 
-            function printNode(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
+            function printNodeAndVerifyContent(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
                 const nonFormattedText = textChangePrinter.getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine);
                 verifyPositions(nonFormattedText);
                 return textChangePrinter.formatNode(nonFormattedText, sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
             }
 
             it("can remove and insert nodes", () => {
-                const text = `
+                Harness.Baseline.runBaseline("printer/removeAndInsertNodes.js", () => {
+                    const text = `
 namespace M 
 {
     namespace M2 
@@ -194,69 +190,69 @@ namespace M
         }
     }
 }`;
-                const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015);
-                debugger
-                const f = <FunctionDeclaration>findChild("foo", sourceFile);
-                assert(f);
-                // select all but first statements
-                const statements = (<Block>f.body).statements.slice(1);
-                const newFunction = createFunctionDeclaration(
-                    /*decorators*/ undefined,
-                    /*modifiers*/ undefined,
-                    /*asteriskToken*/ undefined,
-                    /*name*/ "bar",
-                    /*typeParameters*/ undefined,
-                    /*parameters*/ emptyArray,
-                    /*type*/ createKeywordTypeNode(SyntaxKind.AnyKeyword),
-                    /*body */ createBlock(statements)
-                );
+                    const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015);
+                    debugger
+                    const f = <FunctionDeclaration>findChild("foo", sourceFile);
+                    assert(f);
+                    // select all but first statements
+                    const statements = (<Block>f.body).statements.slice(1);
+                    const newFunction = createFunctionDeclaration(
+                        /*decorators*/ undefined,
+                        /*modifiers*/ undefined,
+                        /*asteriskToken*/ undefined,
+                        /*name*/ "bar",
+                        /*typeParameters*/ undefined,
+                        /*parameters*/ emptyArray,
+                        /*type*/ createKeywordTypeNode(SyntaxKind.AnyKeyword),
+                        /*body */ createBlock(statements)
+                    );
 
-                const rulesProvider = new formatting.RulesProvider();
-                const options = getDefaultFormatOptions();
-                options.placeOpenBraceOnNewLineForFunctions = true;
-                rulesProvider.ensureUpToDate(options);
+                    const rulesProvider = new formatting.RulesProvider();
+                    const options = getDefaultFormatOptions();
+                    options.placeOpenBraceOnNewLineForFunctions = true;
+                    rulesProvider.ensureUpToDate(options);
 
-                const changes: TextChange[] = []
-                // create first change to insert function before M2
-                const text1 = printNode(newFunction,
-                    sourceFile,
-                    NewLineKind.LineFeed,
-                    /*startWithNewLine*/ true,
-                    /*endWithNewLine*/ true,
-                    /*initialIndentation*/ 4,
-                    /*delta*/ 4,
-                    rulesProvider,
-                    options);
+                    const changes: TextChange[] = []
+                    // create first change to insert function before M2
+                    const text1 = printNodeAndVerifyContent(newFunction,
+                        sourceFile,
+                        NewLineKind.LineFeed,
+                        /*startWithNewLine*/ true,
+                        /*endWithNewLine*/ true,
+                        /*initialIndentation*/ 4,
+                        /*delta*/ 4,
+                        rulesProvider,
+                        options);
 
-                const m2 = findChild("M2", sourceFile);
-                // insert c1 before m2
-                changes.push({
-                    span: createTextSpan(getLineStartPositionForPosition(m2.getStart(sourceFile), sourceFile), 0),
-                    newText: text1
+                    const m2 = findChild("M2", sourceFile);
+                    // insert c1 before m2
+                    changes.push({
+                        span: createTextSpan(getLineStartPositionForPosition(m2.getStart(sourceFile), sourceFile), 0),
+                        newText: text1
+                    });
+
+                    // replace statements with return statement
+                    const newStatement = createReturn(
+                        createCall(
+                        /*expression*/ newFunction.name,
+                        /*typeArguments*/ undefined,
+                        /*argumentsArray*/ emptyArray
+                        ));
+                    const text2 = printNodeAndVerifyContent(newStatement,
+                        sourceFile,
+                        NewLineKind.LineFeed,
+                        /*startWithNewLine*/ true,
+                        /*endWithNewLine*/ false,
+                        /*initialIndentation*/ 12,
+                        /*delta*/ 0,
+                        rulesProvider,
+                        options);
+                    changes.push({
+                        span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
+                        newText: text2
+                    });
+                    return textChangePrinter.applyChanges(sourceFile.text, changes);
                 });
-
-                // replace statements with return statement
-                const newStatement = createReturn(
-                    createCall(
-                    /*expression*/ newFunction.name,
-                    /*typeArguments*/ undefined,
-                    /*argumentsArray*/ emptyArray
-                    ));
-                const text2 = printNode(newStatement,
-                    sourceFile,
-                    NewLineKind.LineFeed,
-                    /*startWithNewLine*/ true,
-                    /*endWithNewLine*/ false,
-                    /*initialIndentation*/ 12,
-                    /*delta*/ 0,
-                    rulesProvider,
-                    options);
-                changes.push({
-                    span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
-                    newText: text2
-                });
-                const result = textChangePrinter.applyChanges(sourceFile.text, changes);
-                assert(result);
             });
         });
     });
