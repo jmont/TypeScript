@@ -172,7 +172,7 @@ if (testConfigContent !== "") {
     }
 }
 
-if (runners.length === 0) {
+if (0 && runners.length === 0) {
     // compiler
     runners.push(new CompilerBaselineRunner(CompilerTestType.Conformance));
     runners.push(new CompilerBaselineRunner(CompilerTestType.Regressions));

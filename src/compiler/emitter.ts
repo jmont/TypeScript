@@ -1553,6 +1553,10 @@ namespace ts {
             emitSignatureAndBody(node, emitSignatureHead);
         }
 
+        function emitBlockCallback(_hint: EmitHint, body: Node): void {
+            emitBlockFunctionBody(<Block>body);
+        }
+
         function emitSignatureAndBody(node: FunctionLikeDeclaration, emitSignatureHead: (node: SignatureDeclaration) => void) {
             const body = node.body;
             if (body) {
@@ -1564,12 +1568,22 @@ namespace ts {
 
                     if (getEmitFlags(node) & EmitFlags.ReuseTempVariableScope) {
                         emitSignatureHead(node);
-                        emitBlockFunctionBody(body);
+                        if (onEmitNode) {
+                            onEmitNode(EmitHint.Unspecified, body, emitBlockCallback);
+                        }
+                        else {
+                            emitBlockFunctionBody(body);
+                        }
                     }
                     else {
                         pushNameGenerationScope();
                         emitSignatureHead(node);
-                        emitBlockFunctionBody(body);
+                        if (onEmitNode) {
+                            onEmitNode(EmitHint.Unspecified, body, emitBlockCallback);
+                        }
+                        else {
+                            emitBlockFunctionBody(body);
+                        }
                         popNameGenerationScope();
                     }
 

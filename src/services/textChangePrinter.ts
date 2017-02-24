@@ -31,12 +31,17 @@ namespace ts.textChangePrinter {
 
 
         function flatten(n: Node) {
-            const data: Node[] = [];
+            const data: (Node | NodeArray<any>)[] = [];
             walk(n);
             return data;
-            function walk(n: Node) {
-                data.push(n);
-                forEachChild(n, walk);
+            function walk(n: Node | Node[]) {
+                data.push(<any>n);
+                if (isArray(n)) {
+                    n.forEach(walk);
+                }
+                else {
+                    forEachChild(n, walk, walk);
+                }
             }
         }
     }
