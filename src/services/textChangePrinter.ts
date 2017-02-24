@@ -17,11 +17,32 @@ namespace ts.textChangePrinter {
         (<any>n)["__end"] = end;
     }
 
-    export function print(node: Node, sourceFile: SourceFile, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, newLine: NewLineKind, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
-        const writer = new Writer(getNewLineCharacter(newLine));
-        if (startWithNewLine) {
-            writer.writeLine();
+    function checkTrees(s: string, n: Node): void {
+        const l1 = flatten(n);
+        const f = createSourceFile("f.ts", s, ScriptTarget.ES2015);
+        const l2 = flatten(f.statements[0]);
+        Debug.assert(l1.length === l2.length);
+        for (let i = 0; i < l1.length; i++) {
+            const left = l1[i];
+            const right = l2[i];
+            Debug.assert(left.pos === right.pos);
+            Debug.assert(left.end === right.end);
         }
+
+
+        function flatten(n: Node) {
+            const data: Node[] = [];
+            walk(n);
+            return data;
+            function walk(n: Node) {
+                data.push(n);
+                forEachChild(n, walk);
+            }
+        }
+    }
+
+    export function print(node: Node, sourceFile: SourceFile, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, newLine: NewLineKind, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
+        const writer = new Writer(getNewLineCharacter(newLine), startWithNewLine);
         const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
         if (endWithNewLine) {
@@ -35,7 +56,17 @@ namespace ts.textChangePrinter {
             lineMap,
             getLineAndCharacterOfPosition: pos => computeLineAndCharacterOfPosition(lineMap, pos)
         }
-        const changes = formatting.formatNode(clone(node), file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
+        const copy = clone(node);
+        const c1 = createSourceFile("t.ts", nonFormattedText, ScriptTarget.ES2015);
+        const cc1 = formatting.formatNode(c1.statements[0], file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
+        const rr1 = applyChanges(nonFormattedText, cc1);
+        Debug.assert(!!rr1);
+
+        checkTrees(nonFormattedText, copy);
+
+
+
+        const changes = formatting.formatNode(copy, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
         return applyChanges(nonFormattedText, changes);
     }
 
@@ -86,7 +117,7 @@ namespace ts.textChangePrinter {
 
         public readonly onEmitNode: PrintHandlers["onEmitNode"];
 
-        constructor(newLine: string) {
+        constructor(newLine: string, private readonly startWithNewLine: boolean) {
             this.writer = createTextWriter(newLine)
             this.onEmitNode = (hint, node, printCallback) => {
                 setPos(node, this.lastNonTriviaPosition);
@@ -98,6 +129,12 @@ namespace ts.textChangePrinter {
         private setLastNonTriviaPosition(s: string, force: boolean) {
             if (force || !isTrivia(s)) {
                 this.lastNonTriviaPosition = this.writer.getTextPos();
+                let i = 0;
+                while (isWhiteSpace(s.charCodeAt(s.length - i - 1))) {
+                    i++;
+                }
+                // trim trailing whitespaces
+                this.lastNonTriviaPosition -= i;
             }
         }
 
@@ -146,6 +183,9 @@ namespace ts.textChangePrinter {
         reset(): void {
             this.writer.reset();
             this.lastNonTriviaPosition = 0;
+            if (this.startWithNewLine) {
+                this.writeLine();
+            }
         }
     }
 }
