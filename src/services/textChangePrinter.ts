@@ -33,7 +33,7 @@ namespace ts.textChangePrinter {
             lineMap,
             getLineAndCharacterOfPosition: pos => computeLineAndCharacterOfPosition(lineMap, pos)
         }
-        const changes = formatting.formatNode(node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
+        const changes = formatting.formatNode(clone(node), file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
         for (let i = changes.length - 1; i >= 0; i--) {
             const change = changes[i];
             formattedText = `${formattedText.substring(0, change.span.start)}${change.newText}${formattedText.substring(textSpanEnd(change.span))}`
@@ -48,7 +48,7 @@ namespace ts.textChangePrinter {
     const nullTransformationContext: TransformationContext = {
         enableEmitNotification: noop,
         enableSubstitution: noop,
-        endLexicalEnvironment: notImplemented,
+        endLexicalEnvironment: () => undefined,
         getCompilerOptions: notImplemented,
         getEmitHost: notImplemented,
         getEmitResolver: notImplemented,
@@ -78,20 +78,21 @@ namespace ts.textChangePrinter {
         private lastNonTriviaPosition = 0;
         private readonly writer: EmitTextWriter;
 
+        public readonly onEmitNode: PrintHandlers["onEmitNode"];
+
         constructor(newLine: string) {
             this.writer = createTextWriter(newLine)
+            this.onEmitNode = (hint, node, printCallback) => {
+                setPos(node, this.lastNonTriviaPosition);
+                printCallback(hint, node);
+                setEnd(node, this.lastNonTriviaPosition);
+            };
         }
 
         private setLastNonTriviaPosition(s: string, force: boolean) {
-            if (force && !isTrivia(s)) {
+            if (force || !isTrivia(s)) {
                 this.lastNonTriviaPosition = this.writer.getTextPos();
             }
-        }
-
-        onEmitNode(hint: EmitHint, node: Node, printCallback: (hint: EmitHint, node: Node) => void) {
-            setPos(node, this.lastNonTriviaPosition);
-            printCallback(hint, node);
-            setEnd(node, this.lastNonTriviaPosition);
         }
 
         write(s: string): void {

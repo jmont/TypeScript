@@ -1,12 +1,13 @@
 /// <reference path="..\..\compiler\emitter.ts" />
+/// <reference path="..\..\services\textChangePrinter.ts" />
 /// <reference path="..\harness.ts" />
 
 namespace ts {
-    interface MapConstructor {
-        new (): Map<any>;
-    }
+    // interface MapConstructor {
+    //     new (): Map<any>;
+    // }
 
-    declare const Map: MapConstructor;
+    // declare const Map: MapConstructor;
     describe("PrinterAPI", () => {
         function makePrintsCorrectly(prefix: string) {
             return function printsCorrectly(name: string, options: PrinterOptions, printCallback: (printer: Printer) => string) {
@@ -124,28 +125,60 @@ module M {
                     undefined,
                     createIdentifier("M2"),
                     createModuleBlock(statements));
-                const starts = new Map();
-                const ends = new Map();
-                const textWriter = createTextWriter("\n");
-                const printer = createPrinter({}, {
-                    onEmitNode(hint, node, printCallback) {
-                        starts.set(<any>node, textWriter.getTextPos());
-                        printCallback(hint, node);
-                        ends.set(<any>node, textWriter.getTextPos());
-                    }
-                });
-                printer.writeNode(EmitHint.Unspecified, synthesizedNode, sourceFile, textWriter);
-                const r = textWriter.getText();
-                const keys = starts.keys();
-                while (true) {
-                    const { value, done } = keys.next();
-                    if (done) {
-                        break;
-                    }
-                    const s = starts.get(value);
-                    const e = ends.get(value);
-                    console.log(`${s} - ${e}: ${ r.substring(s, e) }`);
-                }
+                const options = {
+                    indentSize: 4,
+                    tabSize: 4,
+                    newLineCharacter: "\n",
+                    convertTabsToSpaces: true,
+                    indentStyle: ts.IndentStyle.Smart,
+                    insertSpaceAfterConstructor: false,
+                    insertSpaceAfterCommaDelimiter: true,
+                    insertSpaceAfterSemicolonInForStatements: true,
+                    insertSpaceBeforeAndAfterBinaryOperators: true,
+                    insertSpaceAfterKeywordsInControlFlowStatements: true,
+                    insertSpaceAfterFunctionKeywordForAnonymousFunctions: false,
+                    insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis: false,
+                    insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets: false,
+                    insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
+                    insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces: false,
+                    insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces: false,
+                    insertSpaceBeforeFunctionParenthesis: false,
+                    placeOpenBraceOnNewLineForFunctions: false,
+                    placeOpenBraceOnNewLineForControlBlocks: false,
+                };
+                const rulesProvider = new formatting.RulesProvider();
+                rulesProvider.ensureUpToDate(options)
+                const text = textChangePrinter.print(synthesizedNode,
+                    sourceFile,
+                    true,
+                    2,
+                    2,
+                    NewLineKind.LineFeed,
+                    rulesProvider,
+                    options);
+                assert(text);
+                // const starts = new Map();
+                // const ends = new Map();
+                // const textWriter = createTextWriter("\n");
+                // const printer = createPrinter({}, {
+                //     onEmitNode(hint, node, printCallback) {
+                //         starts.set(<any>node, textWriter.getTextPos());
+                //         printCallback(hint, node);
+                //         ends.set(<any>node, textWriter.getTextPos());
+                //     }
+                // });
+                // printer.writeNode(EmitHint.Unspecified, synthesizedNode, sourceFile, textWriter);
+                // const r = textWriter.getText();
+                // const keys = starts.keys();
+                // while (true) {
+                //     const { value, done } = keys.next();
+                //     if (done) {
+                //         break;
+                //     }
+                //     const s = starts.get(value);
+                //     const e = ends.get(value);
+                //     console.log(`${s} - ${e}: ${ r.substring(s, e) }`);
+                // }
             });
         });
     });
