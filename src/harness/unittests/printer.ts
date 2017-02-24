@@ -101,31 +101,20 @@ namespace ts {
         });
 
         describe("print_mixed_content", () => {
-            const sourceFile = createSourceFile("source.ts",
-            `
-module M {
-    // comment 1
-    const x = 1;
-    
-    /**
-     * comment 2 line 1
-     * comment 2 line 2
-     */
-    function f() {
-        return 100;
-    }
-    const y = 2; // comment 3
-}
-            `, ScriptTarget.ES2015);
-            it("runs", () => {
-                debugger
-                const statements = (<ModuleBlock>(<ModuleDeclaration>sourceFile.statements[0]).body).statements;
-                const synthesizedNode = createModuleDeclaration(
-                    undefined,
-                    undefined,
-                    createIdentifier("M2"),
-                    createModuleBlock(statements));
-                const options = {
+            function findChild(name: string, n: Node) {
+                return find(n);
+
+                function find(node: Node): Node {
+                    if (isDeclaration(node) && isIdentifier(node.name) && node.name.text === name) {
+                        return node
+                    }
+                    else {
+                        return forEachChild(node, find);
+                    }
+                }
+            }
+            function getDefaultFormatOptions() {
+                return {
                     indentSize: 4,
                     tabSize: 4,
                     newLineCharacter: "\n",
@@ -146,39 +135,93 @@ module M {
                     placeOpenBraceOnNewLineForFunctions: false,
                     placeOpenBraceOnNewLineForControlBlocks: false,
                 };
+            }
+
+            it("can remove and insert nodes", () => {
+                const text = `
+namespace M 
+{
+    namespace M2 
+    {
+        function foo() {
+            // comment 1
+            const x = 1;
+
+            /**
+             * comment 2 line 1
+             * comment 2 line 2
+             */
+            function f() {
+                return 100;
+            }
+            const y = 2; // comment 3
+            return 1;
+        }
+    }
+}`;
+                const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015);
+                debugger
+                const f = <FunctionDeclaration>findChild("foo", sourceFile);
+                assert(f);
+                // select all but first statements
+                const statements = (<Block>f.body).statements.slice(1);
+                const newFunction = createFunctionDeclaration(
+                    /*decorators*/ undefined,
+                    /*modifiers*/ undefined,
+                    /*asteriskToken*/ undefined,
+                    /*name*/ "bar",
+                    /*typeParameters*/emptyArray,
+                    /*parameters*/ emptyArray,
+                    /*type*/ createKeywordTypeNode(SyntaxKind.AnyKeyword),
+                    /*body */ createBlock(statements)
+                );
+
                 const rulesProvider = new formatting.RulesProvider();
-                rulesProvider.ensureUpToDate(options)
-                const text = textChangePrinter.print(synthesizedNode,
+                const options = getDefaultFormatOptions();
+                options.placeOpenBraceOnNewLineForFunctions = true;
+                rulesProvider.ensureUpToDate(options);
+
+                const changes: TextChange[] = []
+                // create first change to insert function before M2
+                const text1 = textChangePrinter.print(newFunction,
                     sourceFile,
-                    true,
-                    2,
-                    2,
+                    /*startWithNewLine*/ true,
+                    /*endWithNewLine*/ true,
+                    /*initialIndentation*/ 4,
+                    /*delta*/ 4,
                     NewLineKind.LineFeed,
                     rulesProvider,
                     options);
-                assert(text);
-                // const starts = new Map();
-                // const ends = new Map();
-                // const textWriter = createTextWriter("\n");
-                // const printer = createPrinter({}, {
-                //     onEmitNode(hint, node, printCallback) {
-                //         starts.set(<any>node, textWriter.getTextPos());
-                //         printCallback(hint, node);
-                //         ends.set(<any>node, textWriter.getTextPos());
-                //     }
-                // });
-                // printer.writeNode(EmitHint.Unspecified, synthesizedNode, sourceFile, textWriter);
-                // const r = textWriter.getText();
-                // const keys = starts.keys();
-                // while (true) {
-                //     const { value, done } = keys.next();
-                //     if (done) {
-                //         break;
-                //     }
-                //     const s = starts.get(value);
-                //     const e = ends.get(value);
-                //     console.log(`${s} - ${e}: ${ r.substring(s, e) }`);
-                // }
+
+                const m2 = findChild("M2", sourceFile);
+                // insert c1 before m2
+                changes.push({
+                    span: createTextSpan(getLineStartPositionForPosition(m2.getStart(sourceFile), sourceFile), 0),
+                    newText: text1
+                });
+
+                // replace statements with return statement
+                const newStatement = createReturn(
+                    createCall(
+                    /*expression*/ newFunction.name,
+                    /*typeArguments*/ emptyArray,
+                    /*argumentsArray*/ emptyArray
+                    ));
+                const text2 = textChangePrinter.print(newStatement,
+                    sourceFile,
+                    /*startWithNewLine*/ true,
+                    /*endWithNewLine*/ false,
+                    /*initialIndentation*/ 12,
+                    /*delta*/ 0,
+                    NewLineKind.LineFeed,
+                    rulesProvider,
+                    options);
+                changes.push({
+                    span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].getFullStart(), sourceFile), statements[statements.length - 1].getEnd()),
+                    newText: text2
+                });
+                const result = textChangePrinter.applyChanges(sourceFile.text, changes);
+                assert(result);
             });
         });
     });

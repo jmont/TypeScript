@@ -17,28 +17,34 @@ namespace ts.textChangePrinter {
         (<any>n)["__end"] = end;
     }
 
-    export function print(node: Node, sourceFile: SourceFile, startOnNewLine: boolean, initialIndentation: number, delta: number, newLine: NewLineKind, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
+    export function print(node: Node, sourceFile: SourceFile, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, newLine: NewLineKind, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
         const writer = new Writer(getNewLineCharacter(newLine));
-        if (startOnNewLine) {
+        if (startWithNewLine) {
             writer.writeLine();
         }
         const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
+        if (endWithNewLine) {
+            writer.writeLine();
+        }
 
         const nonFormattedText = writer.getText();
         const lineMap = computeLineStarts(nonFormattedText);
-        let formattedText = nonFormattedText;
         const file: SourceFileLike = {
             text: nonFormattedText,
             lineMap,
             getLineAndCharacterOfPosition: pos => computeLineAndCharacterOfPosition(lineMap, pos)
         }
         const changes = formatting.formatNode(clone(node), file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
+        return applyChanges(nonFormattedText, changes);
+    }
+
+    export function applyChanges(text: string, changes: TextChange[]): string {
         for (let i = changes.length - 1; i >= 0; i--) {
             const change = changes[i];
-            formattedText = `${formattedText.substring(0, change.span.start)}${change.newText}${formattedText.substring(textSpanEnd(change.span))}`
+            text = `${text.substring(0, change.span.start)}${change.newText}${text.substring(textSpanEnd(change.span))}`
         }
-        return formattedText;
+        return text;
     }
 
     function isTrivia(s: string) {
