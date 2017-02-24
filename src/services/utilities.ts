@@ -394,8 +394,8 @@ namespace ts {
         list: Node;
     }
 
-    export function getLineStartPositionForPosition(position: number, sourceFile: SourceFile): number {
-        const lineStarts = sourceFile.getLineStarts();
+    export function getLineStartPositionForPosition(position: number, sourceFile: SourceFileLike): number {
+        const lineStarts = getLineStarts(sourceFile);
         const line = sourceFile.getLineAndCharacterOfPosition(position).line;
         return lineStarts[line];
     }
@@ -604,7 +604,7 @@ namespace ts {
         return !!findChildOfKind(n, kind, sourceFile);
     }
 
-    export function findChildOfKind(n: Node, kind: SyntaxKind, sourceFile?: SourceFile): Node | undefined {
+    export function findChildOfKind(n: Node, kind: SyntaxKind, sourceFile?: SourceFileLike): Node | undefined {
         return forEach(n.getChildren(sourceFile), c => c.kind === kind && c);
     }
 

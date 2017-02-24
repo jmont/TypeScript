@@ -5,7 +5,6 @@
 
 /* @internal */
 namespace ts.formatting {
-
     export interface TextRangeWithKind extends TextRange {
         kind: SyntaxKind;
     }
@@ -119,11 +118,6 @@ namespace ts.formatting {
             end: end
         };
         return formatSpan(span, sourceFile, options, rulesProvider, FormattingRequestKind.FormatSelection);
-    }
-
-    /* @internal */
-    export function formatNode(_node: Node, _text: string, _rulesProvider: RulesProvider, _options: FormatCodeSettings): TextChange[] {
-        throw notImplemented();
     }
 
     function formatOutermostParent(position: number, expectedLastToken: SyntaxKind, sourceFile: SourceFile, options: FormatCodeSettings, rulesProvider: RulesProvider, requestKind: FormattingRequestKind): TextChange[] {
@@ -319,24 +313,55 @@ namespace ts.formatting {
         return 0;
     }
 
+    /* @internal */
+    export function formatNode(node: Node, sourceFileLike: SourceFileLike, languageVariant: LanguageVariant, initialIndentation: number, delta: number,  rulesProvider: RulesProvider, options: FormatCodeSettings): TextChange[] {
+        const range = { pos: 0, end: sourceFileLike.text.length }
+        return formatSpanWorker(
+            range,
+            node,
+            initialIndentation,
+            delta,
+            getFormattingScanner(sourceFileLike.text, languageVariant, range.pos, range.end),
+            options,
+            rulesProvider,
+            FormattingRequestKind.FormatSelection,
+            _ => false,
+            sourceFileLike);
+    }
+
     function formatSpan(originalRange: TextRange,
         sourceFile: SourceFile,
         options: FormatCodeSettings,
         rulesProvider: RulesProvider,
         requestKind: FormattingRequestKind): TextChange[] {
+        // find the smallest node that fully wraps the range and compute the initial indentation for the node
+        const enclosingNode = findEnclosingNode(originalRange, sourceFile);
+        return formatSpanWorker(
+            originalRange,
+            enclosingNode,
+            SmartIndenter.getIndentationForNode(enclosingNode, originalRange, sourceFile, options),
+            getOwnOrInheritedDelta(enclosingNode, options, sourceFile),
+            getFormattingScanner(sourceFile.text, sourceFile.languageVariant, getScanStartPosition(enclosingNode, originalRange, sourceFile), originalRange.end),
+            options,
+            rulesProvider,
+            requestKind,
+            prepareRangeContainsErrorFunction(sourceFile.parseDiagnostics, originalRange),
+            sourceFile);
+    }
 
-        const rangeContainsError = prepareRangeContainsErrorFunction(sourceFile.parseDiagnostics, originalRange);
+    function formatSpanWorker(originalRange: TextRange,
+        enclosingNode: Node,
+        initialIndentation: number,
+        delta: number,
+        formattingScanner: FormattingScanner,
+        options: FormatCodeSettings,
+        rulesProvider: RulesProvider,
+        requestKind: FormattingRequestKind,
+        rangeContainsError: (r: TextRange) => boolean,
+        sourceFile: SourceFileLike): TextChange[] {
 
         // formatting context is used by rules provider
         const formattingContext = new FormattingContext(sourceFile, requestKind);
-
-        // find the smallest node that fully wraps the range and compute the initial indentation for the node
-        const enclosingNode = findEnclosingNode(originalRange, sourceFile);
-
-        const formattingScanner = getFormattingScanner(sourceFile, getScanStartPosition(enclosingNode, originalRange, sourceFile), originalRange.end);
-
-        const initialIndentation = SmartIndenter.getIndentationForNode(enclosingNode, originalRange, sourceFile, options);
-
         let previousRangeHasError: boolean;
         let previousRange: TextRangeWithKind;
         let previousParent: Node;
@@ -356,7 +381,6 @@ namespace ts.formatting {
                 undecoratedStartLine = sourceFile.getLineAndCharacterOfPosition(getNonDecoratorTokenPosOfNode(enclosingNode, sourceFile)).line;
             }
 
-            const delta = getOwnOrInheritedDelta(enclosingNode, options, sourceFile);
             processNode(enclosingNode, enclosingNode, startLine, undecoratedStartLine, initialIndentation, delta);
         }
 

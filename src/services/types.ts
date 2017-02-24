@@ -3,7 +3,11 @@ namespace ts {
         getSourceFile(): SourceFile;
         getChildCount(sourceFile?: SourceFile): number;
         getChildAt(index: number, sourceFile?: SourceFile): Node;
+        /* @internal */
+        getChildren(sourceFile?: SourceFileLike): Node[];
         getChildren(sourceFile?: SourceFile): Node[];
+        /* @internal */
+        getStart(sourceFile?: SourceFileLike, includeJsDocComment?: boolean): number;
         getStart(sourceFile?: SourceFile, includeJsDocComment?: boolean): number;
         getFullStart(): number;
         getEnd(): number;
@@ -57,6 +61,10 @@ namespace ts {
         getLineStarts(): number[];
         getPositionOfLineAndCharacter(line: number, character: number): number;
         update(newText: string, textChangeRange: TextChangeRange): SourceFile;
+    }
+
+    export interface SourceFileLike {
+        getLineAndCharacterOfPosition(pos: number): LineAndCharacter;
     }
 
     /**

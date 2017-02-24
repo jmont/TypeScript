@@ -2171,6 +2171,13 @@
         name: string;
     }
 
+    /* @internal */
+    export interface SourceFileLike {
+        readonly text: string;
+        lineMap: number[]
+    }
+
+
     // Source files are declarations when they are external modules.
     export interface SourceFile extends Declaration {
         kind: SyntaxKind.SourceFile;

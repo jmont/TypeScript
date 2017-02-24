@@ -5,7 +5,8 @@ namespace ts {
     interface MapConstructor {
         new (): Map<any>;
     }
-    declare const Map: MapConstructor;  
+
+    declare const Map: MapConstructor;
     describe("PrinterAPI", () => {
         function makePrintsCorrectly(prefix: string) {
             return function printsCorrectly(name: string, options: PrinterOptions, printCallback: (printer: Printer) => string) {

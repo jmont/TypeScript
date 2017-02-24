@@ -184,7 +184,7 @@ namespace ts {
         return false;
     }
 
-    export function getStartPositionOfLine(line: number, sourceFile: SourceFile): number {
+    export function getStartPositionOfLine(line: number, sourceFile: SourceFileLike): number {
         Debug.assert(line >= 0);
         return getLineStarts(sourceFile)[line];
     }
@@ -204,7 +204,7 @@ namespace ts {
         return value !== undefined;
     }
 
-    export function getEndLinePosition(line: number, sourceFile: SourceFile): number {
+    export function getEndLinePosition(line: number, sourceFile: SourceFileLike): number {
         Debug.assert(line >= 0);
         const lineStarts = getLineStarts(sourceFile);
 
@@ -255,7 +255,7 @@ namespace ts {
         return !nodeIsMissing(node);
     }
 
-    export function getTokenPosOfNode(node: Node, sourceFile?: SourceFile, includeJsDoc?: boolean): number {
+    export function getTokenPosOfNode(node: Node, sourceFile?: SourceFileLike, includeJsDoc?: boolean): number {
         // With nodes that have no width (i.e. 'Missing' nodes), we actually *don't*
         // want to skip trivia because this will launch us forward to the next token.
         if (nodeIsMissing(node)) {
@@ -289,7 +289,7 @@ namespace ts {
         return node.kind >= SyntaxKind.FirstJSDocTagNode && node.kind <= SyntaxKind.LastJSDocTagNode;
     }
 
-    export function getNonDecoratorTokenPosOfNode(node: Node, sourceFile?: SourceFile): number {
+    export function getNonDecoratorTokenPosOfNode(node: Node, sourceFile?: SourceFileLike): number {
         if (nodeIsMissing(node) || !node.decorators) {
             return getTokenPosOfNode(node, sourceFile);
         }
