@@ -1,78 +1,51 @@
 /* @internal */
 namespace ts.textChangePrinter {
 
-    function getPos(n: Node) {
+    function getPos(n: TextRange) {
         return (<any>n)["__pos"];
     }
 
-    function setPos(n: Node, pos: number) {
+    function setPos(n: TextRange, pos: number) {
         (<any>n)["__pos"] = pos;
     }
 
-    function getEnd(n: Node) {
+    function getEnd(n: TextRange) {
         return (<any>n)["__end"];
     }
 
-    function setEnd(n: Node, end: number) {
+    function setEnd(n: TextRange, end: number) {
         (<any>n)["__end"] = end;
     }
 
-    function checkTrees(s: string, n: Node): void {
-        const l1 = flatten(n);
-        const f = createSourceFile("f.ts", s, ScriptTarget.ES2015);
-        const l2 = flatten(f.statements[0]);
-        Debug.assert(l1.length === l2.length);
-        for (let i = 0; i < l1.length; i++) {
-            const left = l1[i];
-            const right = l2[i];
-            Debug.assert(left.pos === right.pos);
-            Debug.assert(left.end === right.end);
-        }
-
-
-        function flatten(n: Node) {
-            const data: (Node | NodeArray<any>)[] = [];
-            walk(n);
-            return data;
-            function walk(n: Node | Node[]) {
-                data.push(<any>n);
-                if (isArray(n)) {
-                    n.forEach(walk);
-                }
-                else {
-                    forEachChild(n, walk, walk);
-                }
-            }
-        }
+    export interface NonFormattedText {
+        readonly text: string;
+        readonly node: Node;
     }
 
-    export function print(node: Node, sourceFile: SourceFile, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, newLine: NewLineKind, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
+    export function print(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
+        return formatNode(getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine), sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
+    }
+
+    export function getNonformattedText(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean): NonFormattedText {
         const writer = new Writer(getNewLineCharacter(newLine), startWithNewLine);
         const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
         if (endWithNewLine) {
             writer.writeLine();
         }
+        return { text: writer.getText(), node: wrapSingleNode(node) };
+    }
 
-        const nonFormattedText = writer.getText();
-        const lineMap = computeLineStarts(nonFormattedText);
+    export function formatNode(nonFormattedText: NonFormattedText, sourceFile: SourceFile, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
+        const lineMap = computeLineStarts(nonFormattedText.text);
         const file: SourceFileLike = {
-            text: nonFormattedText,
+            text: nonFormattedText.text,
             lineMap,
             getLineAndCharacterOfPosition: pos => computeLineAndCharacterOfPosition(lineMap, pos)
         }
-        const copy = clone(node);
-        const c1 = createSourceFile("t.ts", nonFormattedText, ScriptTarget.ES2015);
-        const cc1 = formatting.formatNode(c1.statements[0], file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
-        const rr1 = applyChanges(nonFormattedText, cc1);
-        Debug.assert(!!rr1);
-
-        checkTrees(nonFormattedText, copy);
-
-
-
-        const changes = formatting.formatNode(copy, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
-        return applyChanges(nonFormattedText, changes);
+        const changes = formatting.formatNode(nonFormattedText.node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
+        return applyChanges(nonFormattedText.text, changes);
+        
     }
 
     export function applyChanges(text: string, changes: TextChange[]): string {
@@ -107,13 +80,25 @@ namespace ts.textChangePrinter {
         suspendLexicalEnvironment: noop
     }
 
-    function clone(n: Node): Node {
+    function wrapSingleNode(n: Node): Node {
         function C() { }
-        C.prototype = visitEachChild(n, clone, nullTransformationContext);
+        C.prototype = visitEachChild(n, wrapSingleNode, nullTransformationContext, wrapNodes);
         const newNode = new (<any>C)();
         newNode.pos = getPos(n);
         newNode.end = getEnd(n);
         return newNode;
+    }
+
+    function wrapNodes(nodes: NodeArray<any>, visitor: Visitor, test?: (node: Node) => boolean, start?: number, count?: number) {
+        const visited = visitNodes(nodes, visitor, test, start, count);
+        if (!visited) {
+            return visited;
+        }
+        // clone nodearray if necessary
+        const nodeArray = visited === nodes ? createNodeArray(visited) : visited;
+        nodeArray.pos = getPos(nodes);
+        nodeArray.end = getEnd(nodes);
+        return nodeArray;
     }
 
     class Writer implements EmitTextWriter, PrintHandlers {
@@ -121,6 +106,8 @@ namespace ts.textChangePrinter {
         private readonly writer: EmitTextWriter;
 
         public readonly onEmitNode: PrintHandlers["onEmitNode"];
+        public readonly onBeforeEmitNodeArray: PrintHandlers["onBeforeEmitNodeArray"];
+        public readonly onAfterEmitNodeArray: PrintHandlers["onAfterEmitNodeArray"];
 
         constructor(newLine: string, private readonly startWithNewLine: boolean) {
             this.writer = createTextWriter(newLine)
@@ -128,6 +115,16 @@ namespace ts.textChangePrinter {
                 setPos(node, this.lastNonTriviaPosition);
                 printCallback(hint, node);
                 setEnd(node, this.lastNonTriviaPosition);
+            };
+            this.onBeforeEmitNodeArray = nodes => {
+                if (nodes) {
+                    setPos(nodes, this.lastNonTriviaPosition)
+                }
+            };
+            this.onAfterEmitNodeArray = nodes => {
+                if (nodes) {
+                    setEnd(nodes, this.lastNonTriviaPosition);
+                }
             };
         }
 

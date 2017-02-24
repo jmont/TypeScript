@@ -137,6 +137,41 @@ namespace ts {
                 };
             }
 
+            function verifyPositions({text, node}: textChangePrinter.NonFormattedText): void {
+                const nodeList = flatten(node);
+                const sourceFile = createSourceFile("f.ts", text, ScriptTarget.ES2015);
+                const parsedNodeList = flatten(sourceFile.statements[0]);
+                Debug.assert(nodeList.length === parsedNodeList.length);
+                for (let i = 0; i < nodeList.length; i++) {
+                    const left = nodeList[i];
+                    const right = parsedNodeList[i];
+                    Debug.assert(left.pos === right.pos);
+                    Debug.assert(left.end === right.end);
+                }
+
+                function flatten(n: Node) {
+                    const data: (Node | NodeArray<any>)[] = [];
+                    walk(n);
+                    return data;
+
+                    function walk(n: Node | Node[]) {
+                        data.push(<any>n);
+                        if (isArray(n)) {
+                            n.forEach(walk);
+                        }
+                        else {
+                            forEachChild(n, walk, walk);
+                        }
+                    }
+                }
+            }
+
+            function printNode(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
+                const nonFormattedText = textChangePrinter.getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine);
+                verifyPositions(nonFormattedText);
+                return textChangePrinter.formatNode(nonFormattedText, sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
+            }
+
             it("can remove and insert nodes", () => {
                 const text = `
 namespace M 
@@ -170,7 +205,7 @@ namespace M
                     /*modifiers*/ undefined,
                     /*asteriskToken*/ undefined,
                     /*name*/ "bar",
-                    /*typeParameters*/emptyArray,
+                    /*typeParameters*/ undefined,
                     /*parameters*/ emptyArray,
                     /*type*/ createKeywordTypeNode(SyntaxKind.AnyKeyword),
                     /*body */ createBlock(statements)
@@ -183,13 +218,13 @@ namespace M
 
                 const changes: TextChange[] = []
                 // create first change to insert function before M2
-                const text1 = textChangePrinter.print(newFunction,
+                const text1 = printNode(newFunction,
                     sourceFile,
+                    NewLineKind.LineFeed,
                     /*startWithNewLine*/ true,
                     /*endWithNewLine*/ true,
                     /*initialIndentation*/ 4,
                     /*delta*/ 4,
-                    NewLineKind.LineFeed,
                     rulesProvider,
                     options);
 
@@ -204,20 +239,20 @@ namespace M
                 const newStatement = createReturn(
                     createCall(
                     /*expression*/ newFunction.name,
-                    /*typeArguments*/ emptyArray,
+                    /*typeArguments*/ undefined,
                     /*argumentsArray*/ emptyArray
                     ));
-                const text2 = textChangePrinter.print(newStatement,
+                const text2 = printNode(newStatement,
                     sourceFile,
+                    NewLineKind.LineFeed,
                     /*startWithNewLine*/ true,
                     /*endWithNewLine*/ false,
                     /*initialIndentation*/ 12,
                     /*delta*/ 0,
-                    NewLineKind.LineFeed,
                     rulesProvider,
                     options);
                 changes.push({
-                    span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].getFullStart(), sourceFile), statements[statements.length - 1].getEnd()),
+                    span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
                     newText: text2
                 });
                 const result = textChangePrinter.applyChanges(sourceFile.text, changes);
