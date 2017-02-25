@@ -18,6 +18,7 @@ namespace ts.textChanges {
     }
 
     export interface ChangeOptions {
+        hasTrailingNewLine?: boolean;
     }
 
     interface Change {
@@ -33,7 +34,11 @@ namespace ts.textChanges {
 
         private changes: Change[] = [];
 
-        constructor(private readonly sourceFileLookup: SourceFileLookup, private readonly rulesProvider: formatting.RulesProvider, private readonly formatOptions: FormatCodeSettings) {
+        constructor(
+            private readonly sourceFileLookup: SourceFileLookup, 
+            private readonly rulesProvider: formatting.RulesProvider, 
+            private readonly formatOptions: FormatCodeSettings,
+            private readonly validator?: (text: NonFormattedText) => void) {
             this.sourceFileLookup;
             this.rulesProvider;
             this.formatOptions;
@@ -44,6 +49,10 @@ namespace ts.textChanges {
         }
 
         public replace(fileName: string, range: TextRange, newNode: Node, options?: ChangeOptions) {
+            this.changes.push({ fileName, node: newNode, range, options });
+        }
+
+        public replaceRange(fileName: string, ranges: TextRange[], newNode: Node, options?: ChangeOptions) {
             this.changes.push({ fileName, node: newNode, range, options });
         }
 

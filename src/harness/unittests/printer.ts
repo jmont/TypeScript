@@ -191,6 +191,12 @@ namespace M
     }
 }`;
                     const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015);
+                    const rulesProvider = new formatting.RulesProvider();
+                    const options = getDefaultFormatOptions();
+                    options.placeOpenBraceOnNewLineForFunctions = true;
+                    rulesProvider.ensureUpToDate(options);
+
+                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, rulesProvider, options, /*validator*/ verifyPositions);
                     debugger
                     const f = <FunctionDeclaration>findChild("foo", sourceFile);
                     assert(f);
@@ -207,29 +213,26 @@ namespace M
                         /*body */ createBlock(statements)
                     );
 
-                    const rulesProvider = new formatting.RulesProvider();
-                    const options = getDefaultFormatOptions();
-                    options.placeOpenBraceOnNewLineForFunctions = true;
-                    rulesProvider.ensureUpToDate(options);
+                    changeTracker.insertNodeBefore(sourceFile.fileName, newFunction, /*before*/findChild("M2", sourceFile), { hasTrailingNewLine: true });
 
-                    const changes: TextChange[] = []
-                    // create first change to insert function before M2
-                    const text1 = printNodeAndVerifyContent(newFunction,
-                        sourceFile,
-                        NewLineKind.LineFeed,
-                        /*startWithNewLine*/ true,
-                        /*endWithNewLine*/ true,
-                        /*initialIndentation*/ 4,
-                        /*delta*/ 0,
-                        rulesProvider,
-                        options);
+                    // const changes: TextChange[] = []
+                    // // create first change to insert function before M2
+                    // const text1 = printNodeAndVerifyContent(newFunction,
+                    //     sourceFile,
+                    //     NewLineKind.LineFeed,
+                    //     /*startWithNewLine*/ true,
+                    //     /*endWithNewLine*/ true,
+                    //     /*initialIndentation*/ 4,
+                    //     /*delta*/ 0,
+                    //     rulesProvider,
+                    //     options);
 
-                    const m2 = findChild("M2", sourceFile);
-                    // insert c1 before m2
-                    changes.push({
-                        span: createTextSpan(getLineStartPositionForPosition(m2.getStart(sourceFile), sourceFile), 0),
-                        newText: text1
-                    });
+                    // const m2 = findChild("M2", sourceFile);
+                    // // insert c1 before m2
+                    // changes.push({
+                    //     span: createTextSpan(getLineStartPositionForPosition(m2.getStart(sourceFile), sourceFile), 0),
+                    //     newText: text1
+                    // });
 
                     // replace statements with return statement
                     const newStatement = createReturn(
@@ -238,20 +241,26 @@ namespace M
                         /*typeArguments*/ undefined,
                         /*argumentsArray*/ emptyArray
                         ));
-                    const text2 = printNodeAndVerifyContent(newStatement,
-                        sourceFile,
-                        NewLineKind.LineFeed,
-                        /*startWithNewLine*/ true,
-                        /*endWithNewLine*/ false,
-                        /*initialIndentation*/ 12,
-                        /*delta*/ 0,
-                        rulesProvider,
-                        options);
-                    changes.push({
-                        span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
-                        newText: text2
-                    });
-                    return textChanges.applyChanges(sourceFile.text, changes);
+                    changeTracker.replaceRange(sourceFile.fileName, statements, newStatement);
+
+                    // const text2 = printNodeAndVerifyContent(newStatement,
+                    //     sourceFile,
+                    //     NewLineKind.LineFeed,
+                    //     /*startWithNewLine*/ true,
+                    //     /*endWithNewLine*/ false,
+                    //     /*initialIndentation*/ 12,
+                    //     /*delta*/ 0,
+                    //     rulesProvider,
+                    //     options);
+                    // changes.push({
+                    //     span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
+                    //     newText: text2
+                    // });
+                    const changes = changeTracker.getChanges();
+                    assert.equal(changes.length, 1);
+                    assert.equal(changes[0].fileName, sourceFile.fileName);
+
+                    return textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
                 });
             });
         });
