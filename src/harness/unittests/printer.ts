@@ -1,5 +1,5 @@
 /// <reference path="..\..\compiler\emitter.ts" />
-/// <reference path="..\..\services\textChangePrinter.ts" />
+/// <reference path="..\..\services\textChanges.ts" />
 /// <reference path="..\harness.ts" />
 
 namespace ts {
@@ -161,11 +161,11 @@ namespace ts {
                 }
             }
 
-            function printNodeAndVerifyContent(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
-                const nonFormattedText = textChanges.getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine);
-                verifyPositions(nonFormattedText);
-                return textChanges.formatNode(nonFormattedText, sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
-            }
+            // function printNodeAndVerifyContent(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
+            //     const nonFormattedText = textChanges.getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine);
+            //     verifyPositions(nonFormattedText);
+            //     return textChanges.applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
+            // }
 
             it("can remove and insert nodes", () => {
                 Harness.Baseline.runBaseline("printer/removeAndInsertNodes.js", () => {
@@ -196,7 +196,7 @@ namespace M
                     options.placeOpenBraceOnNewLineForFunctions = true;
                     rulesProvider.ensureUpToDate(options);
 
-                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, rulesProvider, options, /*validator*/ verifyPositions);
+                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.LineFeed, rulesProvider, options, /*validator*/ verifyPositions);
                     debugger
                     const f = <FunctionDeclaration>findChild("foo", sourceFile);
                     assert(f);

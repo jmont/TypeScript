@@ -18,7 +18,8 @@ namespace ts.textChanges {
     }
 
     export interface ChangeOptions {
-        hasTrailingNewLine?: boolean;
+        readonly hasLeadingNewLine?: boolean;
+        readonly hasTrailingNewLine?: boolean;
     }
 
     interface Change {
@@ -28,20 +29,22 @@ namespace ts.textChanges {
         readonly options?: ChangeOptions;
     }
 
-    export type SourceFileLookup = (fileName: string) => SourceFile;
+    export type SourceFileLookup = (fileName: string) => SourceFile | undefined;
 
     export class ChangeTracker {
 
         private changes: Change[] = [];
 
         constructor(
-            private readonly sourceFileLookup: SourceFileLookup, 
+            private readonly sourceFileLookup: SourceFileLookup,
+            private readonly newLine: NewLineKind, 
             private readonly rulesProvider: formatting.RulesProvider, 
             private readonly formatOptions: FormatCodeSettings,
             private readonly validator?: (text: NonFormattedText) => void) {
             this.sourceFileLookup;
             this.rulesProvider;
             this.formatOptions;
+            this.validator;
         }
 
         public removeRange(fileName: string, range: TextRange) {
@@ -53,6 +56,13 @@ namespace ts.textChanges {
         }
 
         public replaceRange(fileName: string, ranges: TextRange[], newNode: Node, options?: ChangeOptions) {
+            if (!ranges.length) {
+                return;
+            }
+            const range = {
+                pos: ranges[0].pos,
+                end: ranges[ranges.length - 1].end
+            };
             this.changes.push({ fileName, node: newNode, range, options });
         }
 
@@ -81,12 +91,16 @@ namespace ts.textChanges {
             // convert changes
             const fileChangesList: FileTextChanges[] = [];
             forEachEntry(changesPerFile, (changesInFile, k) => {
+                const sourceFile = this.sourceFileLookup(k);
+                Debug.assert(sourceFile !== undefined);
+
                 ChangeTracker.normalize(changesInFile);
+
                 const fileTextChanges: FileTextChanges = { fileName: k, textChanges: [] };
                 for (const c of changesInFile) {
                     fileTextChanges.textChanges.push({
-                        span: this.computeSpan(c),
-                        newText: this.computeNewText(c)
+                        span: this.computeSpan(c, sourceFile),
+                        newText: this.computeNewText(c, sourceFile)
                     });
                 }
                 fileChangesList.push(fileTextChanges);
@@ -95,12 +109,30 @@ namespace ts.textChanges {
             return fileChangesList;
         }
 
-        private computeSpan(_change: Change): TextSpan {
+        private computeSpan(change: Change, _sourceFile: SourceFile): TextSpan {
+            const options = change.options || {};
+            if (options.hasLeadingNewLine) {
+                
+            }
+            const token = getTouchingToken(change.range.pos)
+            // TODO: skip trailing trivia of a previous node
             throw notImplemented();
         }
 
-        private computeNewText(_change: Change): string {
-            throw notImplemented();
+        private computeNewText(change: Change, sourceFile: SourceFile): string {
+            if (!change.node) {
+                // deletion case
+                return "";
+            }
+            const options = change.options || {};
+            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine, options.hasLeadingNewLine, options.hasTrailingNewLine);
+            if (this.validator) {
+                this.validator(nonFormattedText);
+            }
+            // TODO:
+            const initialIndentation = 0;
+            const delta = 0;
+            return applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions)
         }
 
         private static normalize(changes: Change[]) {
@@ -118,10 +150,6 @@ namespace ts.textChanges {
         readonly node: Node;
     }
 
-    export function print(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings): string {
-        return formatNode(getNonformattedText(node, sourceFile, newLine, startWithNewLine, endWithNewLine), sourceFile, initialIndentation, delta, rulesProvider, formatSettings);
-    }
-
     export function getNonformattedText(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean): NonFormattedText {
         const writer = new Writer(getNewLineCharacter(newLine), startWithNewLine);
         const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
@@ -129,10 +157,10 @@ namespace ts.textChanges {
         if (endWithNewLine) {
             writer.writeLine();
         }
-        return { text: writer.getText(), node: wrapSingleNode(node) };
+        return { text: writer.getText(), node: assignPositionsToNode(node) };
     }
 
-    export function formatNode(nonFormattedText: NonFormattedText, sourceFile: SourceFile, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
+    export function applyFormatting(nonFormattedText: NonFormattedText, sourceFile: SourceFile, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
         const lineMap = computeLineStarts(nonFormattedText.text);
         const file: SourceFileLike = {
             text: nonFormattedText.text,
@@ -176,16 +204,20 @@ namespace ts.textChanges {
         suspendLexicalEnvironment: noop
     }
 
-    function wrapSingleNode(n: Node): Node {
-        function C() { }
-        C.prototype = visitEachChild(n, wrapSingleNode, nullTransformationContext, wrapNodes);
-        const newNode = new (<any>C)();
-        newNode.pos = getPos(n);
-        newNode.end = getEnd(n);
+    function assignPositionsToNode(node: Node): Node {
+        const visited = visitEachChild(node, assignPositionsToNode, nullTransformationContext, assignPositionsToNodeArray);
+        // create proxy node for non synthesized nodes
+        const newNode = nodeIsSynthesized(visited) 
+            ? visited
+            : (Proxy.prototype = visited, new (<any>Proxy)());
+        newNode.pos = getPos(node);
+        newNode.end = getEnd(node);
         return newNode;
+
+        function Proxy() { }
     }
 
-    function wrapNodes(nodes: NodeArray<any>, visitor: Visitor, test?: (node: Node) => boolean, start?: number, count?: number) {
+    function assignPositionsToNodeArray(nodes: NodeArray<any>, visitor: Visitor, test?: (node: Node) => boolean, start?: number, count?: number) {
         const visited = visitNodes(nodes, visitor, test, start, count);
         if (!visited) {
             return visited;

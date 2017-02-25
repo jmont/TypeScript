@@ -62,7 +62,7 @@
         "shims.ts",
         "signatureHelp.ts",
         "symbolDisplay.ts",
-        "textChangePrinter.ts",
+        "textChanges.ts",
         "formatting/formatting.ts",
         "formatting/formattingContext.ts",
         "formatting/formattingRequestKind.ts",
