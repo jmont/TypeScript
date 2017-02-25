@@ -17,23 +17,90 @@ namespace ts.textChanges {
         (<any>n)["__end"] = end;
     }
 
+    export interface ChangeOptions {
+    }
+
+    interface Change {
+        readonly fileName: string;
+        readonly range: TextRange;
+        readonly node?: Node;
+        readonly options?: ChangeOptions;
+    }
+
+    export type SourceFileLookup = (fileName: string) => SourceFile;
+
     export class ChangeTracker {
-        public removeNode(node: Node) {
+
+        private changes: Change[] = [];
+
+        constructor(private readonly sourceFileLookup: SourceFileLookup, private readonly rulesProvider: formatting.RulesProvider, private readonly formatOptions: FormatCodeSettings) {
+            this.sourceFileLookup;
+            this.rulesProvider;
+            this.formatOptions;
         }
 
-        public replaceNode(oldNode: Node, newNode: Node) {
+        public removeRange(fileName: string, range: TextRange) {
+            this.changes.push({ fileName, range });
         }
 
-        public insertNode(node: Node, pos: number) {
+        public replace(fileName: string, range: TextRange, newNode: Node, options?: ChangeOptions) {
+            this.changes.push({ fileName, node: newNode, range, options });
         }
 
-        public insertNodeAfter(node: Node, after: Node) {
+        public insertNodeAt(fileName: string, pos: number, node: Node, options?: ChangeOptions) {
+            this.changes.push({ fileName, range: { pos, end: pos }, node, options });
         }
 
-        public insertNodeBefore(node: Node, before: Node) {
+        public insertNodeAfter(fileName: string, node: Node, after: Node, options?: ChangeOptions) {
+            this.changes.push({ fileName, node, range: { pos: after.end, end: after.end }, options });
+        }
+
+        public insertNodeBefore(fileName: string, node: Node, before: Node, options?: ChangeOptions) {
+            this.changes.push({ fileName, node, range: { pos: before.pos, end: before.pos }, options });
         }
 
         public getChanges(): FileTextChanges[] {
+            const changesPerFile = createMap<Change[]>();
+            // group changes per file
+            for (const c of this.changes) {
+                let changesInFile = changesPerFile.get(c.fileName);
+                if (!changesInFile) {
+                    changesPerFile.set(c.fileName, changesInFile = []);
+                }
+                changesInFile.push(c);
+            }
+            // convert changes
+            const fileChangesList: FileTextChanges[] = [];
+            forEachEntry(changesPerFile, (changesInFile, k) => {
+                ChangeTracker.normalize(changesInFile);
+                const fileTextChanges: FileTextChanges = { fileName: k, textChanges: [] };
+                for (const c of changesInFile) {
+                    fileTextChanges.textChanges.push({
+                        span: this.computeSpan(c),
+                        newText: this.computeNewText(c)
+                    });
+                }
+                fileChangesList.push(fileTextChanges);
+            })
+
+            return fileChangesList;
+        }
+
+        private computeSpan(_change: Change): TextSpan {
+            throw notImplemented();
+        }
+
+        private computeNewText(_change: Change): string {
+            throw notImplemented();
+        }
+
+        private static normalize(changes: Change[]) {
+            // order changes by start position
+            changes.sort((a, b) => a.range.pos - b.range.pos);
+            // verify that end position of the change is less than start position of the next change
+            for (let i = 0; i < changes.length - 2; i++) {
+                Debug.assert(changes[i].range.end <= changes[i + 1].range.pos);
+            }
         }
     }
 
@@ -65,7 +132,7 @@ namespace ts.textChanges {
         }
         const changes = formatting.formatNode(nonFormattedText.node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
         return applyChanges(nonFormattedText.text, changes);
-        
+
     }
 
     export function applyChanges(text: string, changes: TextChange[]): string {

@@ -220,7 +220,7 @@ namespace M
                         /*startWithNewLine*/ true,
                         /*endWithNewLine*/ true,
                         /*initialIndentation*/ 4,
-                        /*delta*/ 4,
+                        /*delta*/ 0,
                         rulesProvider,
                         options);
 
