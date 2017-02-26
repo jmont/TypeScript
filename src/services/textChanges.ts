@@ -27,7 +27,7 @@ namespace ts.textChanges {
          * 
          * Set skipTrailingTriviaOfPreviousNode to true to adjust the start position to the beginning of the next line 
          */
-        skipTrailingTriviaOfPreviousNode?: boolean
+        skipTrailingTriviaOfPreviousNodeAndEmptyLines?: boolean
     }
 
     export interface ChangeOptions extends DeleteOptions {
@@ -48,7 +48,7 @@ namespace ts.textChanges {
     }
 
     function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: DeleteOptions) {
-        if (!options.skipTrailingTriviaOfPreviousNode) {
+        if (!options.skipTrailingTriviaOfPreviousNodeAndEmptyLines) {
             return node.getFullStart();
         }
         const fullStart = node.getFullStart();
@@ -58,9 +58,14 @@ namespace ts.textChanges {
         }
         const fullStartLine = getLineStartPositionForPosition(fullStart, sourceFile);
         const startLine = getLineStartPositionForPosition(start, sourceFile);
-        return startLine === fullStartLine
-            ? start
-            : getStartPositionOfLine(fullStartLine + 1, sourceFile);
+        if (startLine === fullStartLine) {
+            return start;
+        }
+        // get start position of the line following the line that contains fullstart position
+        let adjustedStartPosition = getStartPositionOfLine(getLineOfLocalPosition(sourceFile, fullStartLine) + 1, sourceFile);
+        // skip whitespaces/newlines
+        adjustedStartPosition = skipTrivia(sourceFile.text, adjustedStartPosition, /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+        return getStartPositionOfLine(getLineOfLocalPosition(sourceFile, adjustedStartPosition), sourceFile);
     }
 
     export class ChangeTracker {
@@ -69,8 +74,8 @@ namespace ts.textChanges {
 
         constructor(
             private readonly sourceFileLookup: SourceFileLookup,
-            private readonly newLine: NewLineKind, 
-            private readonly rulesProvider: formatting.RulesProvider, 
+            private readonly newLine: NewLineKind,
+            private readonly rulesProvider: formatting.RulesProvider,
             private readonly formatOptions: FormatCodeSettings,
             private readonly validator?: (text: NonFormattedText) => void) {
         }
@@ -118,13 +123,13 @@ namespace ts.textChanges {
             this.changes.push({ fileName: sourceFile.fileName, options, node: newNode, range: { pos: pos, end: pos } });
         }
 
-        public insertNodeBefore(_sourceFile: SourceFile, _before: Node, _newNode: Node, _options?: ChangeOptions) {
-            throw notImplemented();
+        public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options?: ChangeOptions) {
+            const startPosition = getAdjustedStartPosition(sourceFile, before, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
         }
 
-        public insertNodeAfter(_sourceFile: SourceFile, _before: Node, _newNode: Node, _options?: ChangeOptions) {
-            throw notImplemented();
-            
+        public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options?: ChangeOptions) {
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: after.end, end: after.end } });
         }
 
         // public removeRange(fileName: string, range: TextRange) {
@@ -202,12 +207,12 @@ namespace ts.textChanges {
                 return "";
             }
             const options = change.options || {};
-            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine, false, options.insertTrailingNewLine);
+            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine, /*startWithNewLine*/ false, options.insertTrailingNewLine);
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
             // TODO:
-            const initialIndentation = change.oldNode 
+            const initialIndentation = change.oldNode
                 ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, this.formatOptions)
                 : 0;
             const delta = 0;
@@ -286,7 +291,7 @@ namespace ts.textChanges {
     function assignPositionsToNode(node: Node): Node {
         const visited = visitEachChild(node, assignPositionsToNode, nullTransformationContext, assignPositionsToNodeArray);
         // create proxy node for non synthesized nodes
-        const newNode = nodeIsSynthesized(visited) 
+        const newNode = nodeIsSynthesized(visited)
             ? visited
             : (Proxy.prototype = visited, new (<any>Proxy)());
         newNode.pos = getPos(node);

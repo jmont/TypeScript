@@ -192,13 +192,13 @@ namespace M
 }`;
                     debugger
 
-                    const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015);
+                    const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
                     const rulesProvider = new formatting.RulesProvider();
                     const options = getDefaultFormatOptions();
                     options.placeOpenBraceOnNewLineForFunctions = true;
                     rulesProvider.ensureUpToDate(options);
 
-                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.LineFeed, rulesProvider, options, /*validator*/ verifyPositions);
+                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.CarriageReturnLineFeed, rulesProvider, options, /*validator*/ verifyPositions);
                     // select all but first statements
                     const statements = (<Block>(<FunctionDeclaration>findChild("foo", sourceFile)).body).statements.slice(1);
                     const newFunction = createFunctionDeclaration(
@@ -212,26 +212,7 @@ namespace M
                         /*body */ createBlock(statements)
                     );
 
-                    changeTracker.insertNodeBefore(sourceFile, newFunction, /*before*/findChild("M2", sourceFile), { insertTrailingNewLine: true });
-
-                    // const changes: TextChange[] = []
-                    // // create first change to insert function before M2
-                    // const text1 = printNodeAndVerifyContent(newFunction,
-                    //     sourceFile,
-                    //     NewLineKind.LineFeed,
-                    //     /*startWithNewLine*/ true,
-                    //     /*endWithNewLine*/ true,
-                    //     /*initialIndentation*/ 4,
-                    //     /*delta*/ 0,
-                    //     rulesProvider,
-                    //     options);
-
-                    // const m2 = findChild("M2", sourceFile);
-                    // // insert c1 before m2
-                    // changes.push({
-                    //     span: createTextSpan(getLineStartPositionForPosition(m2.getStart(sourceFile), sourceFile), 0),
-                    //     newText: text1
-                    // });
+                    changeTracker.insertNodeBefore(sourceFile, /*before*/findChild("M2", sourceFile), newFunction, { insertTrailingNewLine: true, skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
 
                     // replace statements with return statement
                     const newStatement = createReturn(
@@ -240,21 +221,8 @@ namespace M
                         /*typeArguments*/ undefined,
                         /*argumentsArray*/ emptyArray
                         ));
-                    changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement, { skipTrailingTriviaOfPreviousNode: true });
+                    changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement, { skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
 
-                    // const text2 = printNodeAndVerifyContent(newStatement,
-                    //     sourceFile,
-                    //     NewLineKind.LineFeed,
-                    //     /*startWithNewLine*/ true,
-                    //     /*endWithNewLine*/ false,
-                    //     /*initialIndentation*/ 12,
-                    //     /*delta*/ 0,
-                    //     rulesProvider,
-                    //     options);
-                    // changes.push({
-                    //     span: createTextSpanFromBounds(getLineStartPositionForPosition(statements[0].jsDoc[0].pos, sourceFile), statements[statements.length - 1].getEnd()),
-                    //     newText: text2
-                    // });
                     const changes = changeTracker.getChanges();
                     assert.equal(changes.length, 1);
                     assert.equal(changes[0].fileName, sourceFile.fileName);
