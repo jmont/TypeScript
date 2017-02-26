@@ -17,19 +17,51 @@ namespace ts.textChanges {
         (<any>n)["__end"] = end;
     }
 
-    export interface ChangeOptions {
-        readonly hasLeadingNewLine?: boolean;
-        readonly hasTrailingNewLine?: boolean;
+    export interface DeleteOptions {
+        /**
+         * Usually node.pos points to a position immediately after the previous token.
+         * If this position is used as a beginning of the span to remove - it might lead to removing the trailing trivia of the previous node, i.e:
+         * const x; // this is x
+         *        ^ - pos for the next variable declaration will point here
+         * const y; // this is y
+         * 
+         * Set skipTrailingTriviaOfPreviousNode to true to adjust the start position to the beginning of the next line 
+         */
+        skipTrailingTriviaOfPreviousNode?: boolean
     }
+
+    export interface ChangeOptions extends DeleteOptions {
+        /**
+         * Set this value to true to make sure that node text of newly inserted node ends with new line
+         */
+        insertTrailingNewLine?: boolean;
+    }
+
+    export type SourceFileLookup = (fileName: string) => SourceFile | undefined;
 
     interface Change {
         readonly fileName: string;
         readonly range: TextRange;
+        readonly oldNode?: Node;
         readonly node?: Node;
         readonly options?: ChangeOptions;
     }
 
-    export type SourceFileLookup = (fileName: string) => SourceFile | undefined;
+    function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: DeleteOptions) {
+        if (!options.skipTrailingTriviaOfPreviousNode) {
+            return node.getFullStart();
+        }
+        const fullStart = node.getFullStart();
+        const start = node.getStart(sourceFile);
+        if (fullStart === start) {
+            return start;
+        }
+        const fullStartLine = getLineStartPositionForPosition(fullStart, sourceFile);
+        const startLine = getLineStartPositionForPosition(start, sourceFile);
+        return startLine === fullStartLine
+            ? start
+            : getStartPositionOfLine(fullStartLine + 1, sourceFile);
+    }
 
     export class ChangeTracker {
 
@@ -41,42 +73,93 @@ namespace ts.textChanges {
             private readonly rulesProvider: formatting.RulesProvider, 
             private readonly formatOptions: FormatCodeSettings,
             private readonly validator?: (text: NonFormattedText) => void) {
-            this.sourceFileLookup;
-            this.rulesProvider;
-            this.formatOptions;
-            this.validator;
         }
 
-        public removeRange(fileName: string, range: TextRange) {
-            this.changes.push({ fileName, range });
+        /**
+         * Records a change to remove a node from the file
+         * @param sourceFile - target source file (should be the same as node.getSourceFile)
+         * @param node - node to remove
+         * @param options - options to tweak deletion 
+         */
+        public deleteNode(sourceFile: SourceFile, node: Node, options: DeleteOptions = {}): void {
+            const startPosition = getAdjustedStartPosition(sourceFile, node, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: node.end } });
         }
 
-        public replace(fileName: string, range: TextRange, newNode: Node, options?: ChangeOptions) {
-            this.changes.push({ fileName, node: newNode, range, options });
+        /**
+         * Records a change to remove a text range from the file
+         * @param _sourceFile - target source file
+         * @param range - range to remove
+         */
+        public deleteRange(sourceFile: SourceFile, range: TextRange): void {
+            this.changes.push({ fileName: sourceFile.fileName, range });
         }
 
-        public replaceRange(fileName: string, ranges: TextRange[], newNode: Node, options?: ChangeOptions) {
-            if (!ranges.length) {
-                return;
-            }
-            const range = {
-                pos: ranges[0].pos,
-                end: ranges[ranges.length - 1].end
-            };
-            this.changes.push({ fileName, node: newNode, range, options });
+        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options?: DeleteOptions): void {
+            const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endNode.end } });
         }
 
-        public insertNodeAt(fileName: string, pos: number, node: Node, options?: ChangeOptions) {
-            this.changes.push({ fileName, range: { pos, end: pos }, node, options });
+        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options?: ChangeOptions): void {
+            const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: oldNode.end } });
         }
 
-        public insertNodeAfter(fileName: string, node: Node, after: Node, options?: ChangeOptions) {
-            this.changes.push({ fileName, node, range: { pos: after.end, end: after.end }, options });
+        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options?: ChangeOptions): void {
+            this.changes.push({ fileName: sourceFile.fileName, range, options, node: newNode });
         }
 
-        public insertNodeBefore(fileName: string, node: Node, before: Node, options?: ChangeOptions) {
-            this.changes.push({ fileName, node, range: { pos: before.pos, end: before.pos }, options });
+        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options?: ChangeOptions): void {
+            const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endNode.end } });
         }
+
+        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options?: ChangeOptions): void {
+            this.changes.push({ fileName: sourceFile.fileName, options, node: newNode, range: { pos: pos, end: pos } });
+        }
+
+        public insertNodeBefore(_sourceFile: SourceFile, _before: Node, _newNode: Node, _options?: ChangeOptions) {
+            throw notImplemented();
+        }
+
+        public insertNodeAfter(_sourceFile: SourceFile, _before: Node, _newNode: Node, _options?: ChangeOptions) {
+            throw notImplemented();
+            
+        }
+
+        // public removeRange(fileName: string, range: TextRange) {
+        //     this.changes.push({ fileName, range });
+        // }
+
+        // public replaceNode(fileName: string, range: TextRange, newNode: Node, skipTrailingTriviaOfPreviousNode: boolean) {
+
+        // }
+        // public replace(fileName: string, range: TextRange, newNode: Node, options?: ChangeOptions) {
+        //     this.changes.push({ fileName, node: newNode, range, options });
+        // }
+
+        // public replaceRange(fileName: string, ranges: TextRange[], newNode: Node, options?: ChangeOptions) {
+        //     if (!ranges.length) {
+        //         return;
+        //     }
+        //     const range = {
+        //         pos: ranges[0].pos,
+        //         end: ranges[ranges.length - 1].end
+        //     };
+        //     this.changes.push({ fileName, node: newNode, range, options });
+        // }
+
+        // public insertNodeAt(fileName: string, pos: number, node: Node, options?: ChangeOptions) {
+        //     this.changes.push({ fileName, range: { pos, end: pos }, node, options });
+        // }
+
+        // public insertNodeAfter(fileName: string, node: Node, after: Node, options?: ChangeOptions) {
+        //     this.changes.push({ fileName, node, range: { pos: after.end, end: after.end }, options });
+        // }
+
+        // public insertNodeBefore(fileName: string, node: Node, before: Node, options?: ChangeOptions) {
+        //     this.changes.push({ fileName, node, range: { pos: before.pos, end: before.pos }, options });
+        // }
 
         public getChanges(): FileTextChanges[] {
             const changesPerFile = createMap<Change[]>();
@@ -110,13 +193,7 @@ namespace ts.textChanges {
         }
 
         private computeSpan(change: Change, _sourceFile: SourceFile): TextSpan {
-            const options = change.options || {};
-            if (options.hasLeadingNewLine) {
-                
-            }
-            const token = getTouchingToken(change.range.pos)
-            // TODO: skip trailing trivia of a previous node
-            throw notImplemented();
+            return createTextSpanFromBounds(change.range.pos, change.range.end);
         }
 
         private computeNewText(change: Change, sourceFile: SourceFile): string {
@@ -125,12 +202,14 @@ namespace ts.textChanges {
                 return "";
             }
             const options = change.options || {};
-            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine, options.hasLeadingNewLine, options.hasTrailingNewLine);
+            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine, false, options.insertTrailingNewLine);
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
             // TODO:
-            const initialIndentation = 0;
+            const initialIndentation = change.oldNode 
+                ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, this.formatOptions)
+                : 0;
             const delta = 0;
             return applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions)
         }

@@ -190,6 +190,8 @@ namespace M
         }
     }
 }`;
+                    debugger
+
                     const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015);
                     const rulesProvider = new formatting.RulesProvider();
                     const options = getDefaultFormatOptions();
@@ -197,11 +199,8 @@ namespace M
                     rulesProvider.ensureUpToDate(options);
 
                     const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.LineFeed, rulesProvider, options, /*validator*/ verifyPositions);
-                    debugger
-                    const f = <FunctionDeclaration>findChild("foo", sourceFile);
-                    assert(f);
                     // select all but first statements
-                    const statements = (<Block>f.body).statements.slice(1);
+                    const statements = (<Block>(<FunctionDeclaration>findChild("foo", sourceFile)).body).statements.slice(1);
                     const newFunction = createFunctionDeclaration(
                         /*decorators*/ undefined,
                         /*modifiers*/ undefined,
@@ -213,7 +212,7 @@ namespace M
                         /*body */ createBlock(statements)
                     );
 
-                    changeTracker.insertNodeBefore(sourceFile.fileName, newFunction, /*before*/findChild("M2", sourceFile), { hasTrailingNewLine: true });
+                    changeTracker.insertNodeBefore(sourceFile, newFunction, /*before*/findChild("M2", sourceFile), { insertTrailingNewLine: true });
 
                     // const changes: TextChange[] = []
                     // // create first change to insert function before M2
@@ -241,7 +240,7 @@ namespace M
                         /*typeArguments*/ undefined,
                         /*argumentsArray*/ emptyArray
                         ));
-                    changeTracker.replaceRange(sourceFile.fileName, statements, newStatement);
+                    changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement, { skipTrailingTriviaOfPreviousNode: true });
 
                     // const text2 = printNodeAndVerifyContent(newStatement,
                     //     sourceFile,
