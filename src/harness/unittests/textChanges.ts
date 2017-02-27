@@ -16,8 +16,9 @@ namespace ts {
                 }
             }
         }
-        function getDefaultFormatOptions() {
-            return {
+
+        function getRuleProviderAndOptions(action?: (opts: FormatCodeSettings) => void) {
+            const options = {
                 indentSize: 4,
                 tabSize: 4,
                 newLineCharacter: "\n",
@@ -38,12 +39,18 @@ namespace ts {
                 placeOpenBraceOnNewLineForFunctions: false,
                 placeOpenBraceOnNewLineForControlBlocks: false,
             };
+            if (action) {
+                action(options);
+            }
+            const rulesProvider = new formatting.RulesProvider();
+            rulesProvider.ensureUpToDate(options);
+            return { rulesProvider, options };
         }
 
         function verifyPositions({ text, node }: textChanges.NonFormattedText): void {
-            const nodeList = flattedNodes(node);
+            const nodeList = flattenNodes(node);
             const sourceFile = createSourceFile("f.ts", text, ScriptTarget.ES2015);
-            const parsedNodeList = flattedNodes(sourceFile.statements[0]);
+            const parsedNodeList = flattenNodes(sourceFile.statements[0]);
             Debug.assert(nodeList.length === parsedNodeList.length);
             for (let i = 0; i < nodeList.length; i++) {
                 const left = nodeList[i];
@@ -52,7 +59,7 @@ namespace ts {
                 Debug.assert(left.end === right.end);
             }
 
-            function flattedNodes(n: Node) {
+            function flattenNodes(n: Node) {
                 const data: (Node | NodeArray<any>)[] = [];
                 walk(n);
                 return data;
@@ -64,9 +71,23 @@ namespace ts {
             }
         }
 
-        it("can remove and insert nodes - 1", () => {
-            Harness.Baseline.runBaseline("printer/removeAndInsertNodes.js", () => {
-                const text = `
+        function runSingleFileTest(caption: string, setupFormatOptions: (opts: FormatCodeSettings) => void, text: string, validateNodes: boolean, testBlock: (sourceFile: SourceFile, changeTracker: textChanges.ChangeTracker) => void) {
+            it(caption, () => {
+                Harness.Baseline.runBaseline(`textChanges/${caption}.js`, () => {
+                    const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
+                    const { rulesProvider, options } = getRuleProviderAndOptions(setupFormatOptions);
+                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.CarriageReturnLineFeed, rulesProvider, options, validateNodes ? verifyPositions : undefined);
+                    testBlock(sourceFile, changeTracker);
+                    const changes = changeTracker.getChanges();
+                    assert.equal(changes.length, 1);
+                    assert.equal(changes[0].fileName, sourceFile.fileName);
+                    return textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
+                });
+            });
+        }
+
+        {
+            const text = `
 namespace M 
 {
     namespace M2 
@@ -87,16 +108,7 @@ namespace M
         }
     }
 }`;
-                debugger
-
-                const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
-                const rulesProvider = new formatting.RulesProvider();
-                const options = getDefaultFormatOptions();
-                options.placeOpenBraceOnNewLineForFunctions = true;
-                rulesProvider.ensureUpToDate(options);
-
-                const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.CarriageReturnLineFeed, rulesProvider, options, /*validator*/ verifyPositions);
-                // select all but first statements
+            runSingleFileTest("extractMethodLike", opts => opts.placeOpenBraceOnNewLineForFunctions = true, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
                 const statements = (<Block>(<FunctionDeclaration>findChild("foo", sourceFile)).body).statements.slice(1);
                 const newFunction = createFunctionDeclaration(
                         /*decorators*/ undefined,
@@ -119,13 +131,21 @@ namespace M
                         /*argumentsArray*/ emptyArray
                     ));
                 changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement, { skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
-
-                const changes = changeTracker.getChanges();
-                assert.equal(changes.length, 1);
-                assert.equal(changes[0].fileName, sourceFile.fileName);
-
-                return textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
             });
-        });
+        }
+        {
+            const text = `
+function foo() {
+    return 1;
+}
+
+function bar() {
+    return 2;
+}
+`;
+            runSingleFileTest("deleteRange1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteRange(sourceFile, { pos: text.indexOf("function foo"), end: text.indexOf("function bar") });
+            });
+        }
     });
 }
