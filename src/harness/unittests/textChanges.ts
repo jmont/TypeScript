@@ -147,5 +147,31 @@ function bar() {
                 changeTracker.deleteRange(sourceFile, { pos: text.indexOf("function foo"), end: text.indexOf("function bar") });
             });
         }
+        {
+            const text = `
+var x = 1; // some comment - 1
+/**
+ * comment 2
+ */
+var y = 2; // comment 3
+var z = 3; // comment 4
+`;
+            function findVariableStatementContainingY(sourceFile: SourceFile) {
+                const varDecl = findChild("y", sourceFile);
+                assert.equal(varDecl.kind, SyntaxKind.VariableDeclaration);
+                const varStatement = varDecl.parent.parent;
+                assert.equal(varStatement.kind, SyntaxKind.VariableStatement);
+                return varStatement;
+            }
+
+            runSingleFileTest("deleteNode1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                // delete raw node range
+                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile));
+            });
+            runSingleFileTest("deleteNode2", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                // delete ignoring trailing trivia of preceding node
+                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
+            });
+        }
     });
 }
