@@ -42,6 +42,14 @@ namespace ts.textChanges {
          * Set this value to true to make sure that node text of newly inserted node ends with new line
          */
         insertTrailingNewLine?: boolean;
+        /**
+         * Text of inserted node will be formatted with this indentation, otherwise indentation will be inferred from the old node
+         */
+        indentation?: number;
+        /**
+         * Text of inserted node will be formatted with this indentation, otherwise indentation will be inferred from the node kind
+         */
+        delta?: number;
     }
 
     export type SourceFileLookup = (fileName: string) => SourceFile | undefined;
@@ -199,10 +207,18 @@ namespace ts.textChanges {
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
-            const initialIndentation = change.oldNode
-                ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, this.formatOptions)
-                : 0;
-            const delta = formatting.SmartIndenter.shouldIndentChildNode(change.node) ? this.formatOptions.indentSize : 0;
+            const initialIndentation =
+                change.options.indentation !== undefined
+                    ? change.options.indentation
+                    : change.oldNode
+                        ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, this.formatOptions)
+                        : 0;
+            const delta =
+                change.options.delta !== undefined
+                    ? change.options.delta
+                    : formatting.SmartIndenter.shouldIndentChildNode(change.node)
+                        ? this.formatOptions.indentSize
+                        : 0;
             return applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions)
         }
 

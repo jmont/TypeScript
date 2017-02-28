@@ -242,7 +242,10 @@ var a = 4; // comment 7`;
             }
             runSingleFileTest("replaceRange", opts => opts.placeOpenBraceOnNewLineForFunctions = true, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
                 changeTracker.replaceRange(sourceFile, { pos: text.indexOf("var y"), end: text.indexOf("var a") }, createClass(), { insertTrailingNewLine: true });
-            })
+            });
+            runSingleFileTest("replaceRangeWithForcedIndentation", opts => opts.placeOpenBraceOnNewLineForFunctions = true, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
+                changeTracker.replaceRange(sourceFile, { pos: text.indexOf("var y"), end: text.indexOf("var a") }, createClass(), { insertTrailingNewLine: true, indentation: 8, delta: 0 });
+            });
         }
     });
 }
