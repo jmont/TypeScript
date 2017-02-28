@@ -131,7 +131,7 @@ namespace M
                         /*typeArguments*/ undefined,
                         /*argumentsArray*/ emptyArray
                     ));
-                changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement);
+                changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement, { insertTrailingNewLine: true });
             });
         }
         {
@@ -215,12 +215,12 @@ var a = 4; // comment 7`;
             function createClass() {
                 return createClassDeclaration(
                     /*decorators*/ undefined,
-                    [ 
+                    [
                         createToken(SyntaxKind.PublicKeyword)
                     ],
                     "class1",
                     /*typeParameters*/ undefined,
-                    [ 
+                    [
                         createHeritageClause(
                             SyntaxKind.ImplementsKeyword,
                             [
@@ -250,6 +250,17 @@ var a = 4; // comment 7`;
             runSingleFileTest("replaceRangeNoLineBreakBefore", opts => opts.placeOpenBraceOnNewLineForFunctions = true, `const x = 1, y = "2";`, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 const newNode = createVariableDeclaration("z1", /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true));
                 changeTracker.replaceRange(sourceFile, { pos: sourceFile.text.indexOf("y"), end: sourceFile.text.indexOf(";") }, newNode);
+            });
+        }
+        {
+            const text = `
+namespace A {
+    const x = 1, y = "2";
+}
+`;
+            runSingleFileTest("replaceNode1NoLineBreakBefore", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                const newNode = createVariableDeclaration("z1", /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true));
+                changeTracker.replaceNode(sourceFile, findChild("y", sourceFile), newNode);
             });
         }
     });

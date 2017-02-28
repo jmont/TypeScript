@@ -141,12 +141,14 @@ namespace ts.textChanges {
 
         public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: oldNode.end } });
+            const endPosition = getAdjustedEndPosition(sourceFile, oldNode, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: endPosition } });
         }
 
         public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endNode.end } });
+            const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endPosition } });
         }
 
         public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options: ChangeNodeOptions = {}): void {
@@ -219,7 +221,11 @@ namespace ts.textChanges {
                     : formatting.SmartIndenter.shouldIndentChildNode(change.node)
                         ? this.formatOptions.indentSize
                         : 0;
-            return applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions)
+            const text = applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions);
+            const pos = change.range.pos;
+            const lineStart = getLineStartPositionForPosition(pos, sourceFile);
+            // strip initial indentation if text will be inserted in the middle of the line
+            return pos !== lineStart ? text.replace(/^\s+/, "") : text;
         }
 
         private static normalize(changes: Change[]) {
