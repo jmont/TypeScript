@@ -344,6 +344,9 @@ namespace M {
             runSingleFileTest("insertNodeBefore1", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
                 changeTracker.insertNodeBefore(sourceFile, findVariableStatementContaining("y", sourceFile), createTestClass(), { insertTrailingNewLine: true });
             });
+            runSingleFileTest("insertNodeAfter1", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeAfter(sourceFile, findVariableStatementContaining("y", sourceFile), createTestClass(), { insertTrailingNewLine: true });
+            });
         }
     });
 }

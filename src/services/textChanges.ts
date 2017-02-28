@@ -69,7 +69,7 @@ namespace ts.textChanges {
         readonly options?: ChangeNodeOptions;
     }
 
-    function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd) {
+    function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStart) {
         if (options.useNonAdjustedStartPosition) {
             return node.getFullStart();
         }
@@ -90,7 +90,7 @@ namespace ts.textChanges {
         return getStartPositionOfLine(getLineOfLocalPosition(sourceFile, adjustedStartPosition), sourceFile);
     }
 
-    function getAdjustedEndPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd) {
+    function getAdjustedEndPosition(sourceFile: SourceFile, node: Node, options: ConfigurableEnd) {
         if (options.useNonAdjustedEndPosition) {
             return node.getEnd();
         }
@@ -168,7 +168,7 @@ namespace ts.textChanges {
         }
 
         public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options: InsertNodeOptions & ConfigurableEnd = {}) {
-            const endPosition = getAdjustedStartPosition(sourceFile, after, options);
+            const endPosition = getAdjustedEndPosition(sourceFile, after, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: endPosition, end: endPosition } });
         }
 
