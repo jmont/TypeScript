@@ -311,5 +311,18 @@ var a = 4; // comment 7`;
                 changeTracker.replaceNodeRange(sourceFile, findVariableStatementContaining("y", sourceFile), findVariableStatementContaining("z", sourceFile), createTestClass(), { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
             });
         }
+        {
+            const text = `
+// comment 1
+var x = 1; // comment 2
+// comment 3
+var y = 2; // comment 4
+var z = 3; // comment 5
+// comment 6
+var a = 4; // comment 7`;
+            runSingleFileTest("insertNodeAt1", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeAt(sourceFile, text.indexOf("var y"), createTestClass(), { insertTrailingNewLine: true });
+            });
+        }
     });
 }
