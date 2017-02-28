@@ -43,6 +43,10 @@ namespace ts.textChanges {
          */
         insertTrailingNewLine?: boolean;
         /**
+         * Set this value to true to make sure that node text of newly inserted node starts with new line
+         */
+        insertLeadingNewLine?: boolean;
+        /**
          * Text of inserted node will be formatted with this indentation, otherwise indentation will be inferred from the old node
          */
         indentation?: number;
@@ -206,7 +210,7 @@ namespace ts.textChanges {
                 return "";
             }
             const options = change.options || {};
-            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine, /*startWithNewLine*/ false, options.insertTrailingNewLine);
+            const nonFormattedText = getNonformattedText(change.node, sourceFile, this.newLine);
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
@@ -222,11 +226,20 @@ namespace ts.textChanges {
                     : formatting.SmartIndenter.shouldIndentChildNode(change.node)
                         ? this.formatOptions.indentSize
                         : 0;
-            const text = applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions);
             const pos = change.range.pos;
             const lineStart = getLineStartPositionForPosition(pos, sourceFile);
-            // strip initial indentation if text will be inserted in the middle of the line
-            return pos !== lineStart ? text.replace(/^\s+/, "") : text;
+
+            let text = applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions);
+            // strip initial indentation (spaces or tabs) if text will be inserted in the middle of the line
+            text = pos !== lineStart ? text.replace(/^\s+/, "") : text;
+            const newLineString = getNewLineCharacter(this.newLine);
+            if (options.insertLeadingNewLine) {
+                text = newLineString + text;
+            }
+            if (options.insertTrailingNewLine) {
+                text = text + newLineString;
+            }
+            return text;
         }
 
         private static normalize(changes: Change[]) {
@@ -244,13 +257,10 @@ namespace ts.textChanges {
         readonly node: Node;
     }
 
-    export function getNonformattedText(node: Node, sourceFile: SourceFile, newLine: NewLineKind, startWithNewLine: boolean, endWithNewLine: boolean): NonFormattedText {
-        const writer = new Writer(getNewLineCharacter(newLine), startWithNewLine);
+    export function getNonformattedText(node: Node, sourceFile: SourceFile, newLine: NewLineKind): NonFormattedText {
+        const writer = new Writer(getNewLineCharacter(newLine));
         const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
-        if (endWithNewLine) {
-            writer.writeLine();
-        }
         return { text: writer.getText(), node: assignPositionsToNode(node) };
     }
 
@@ -330,7 +340,7 @@ namespace ts.textChanges {
         public readonly onBeforeEmitNodeArray: PrintHandlers["onBeforeEmitNodeArray"];
         public readonly onAfterEmitNodeArray: PrintHandlers["onAfterEmitNodeArray"];
 
-        constructor(newLine: string, private readonly startWithNewLine: boolean) {
+        constructor(newLine: string) {
             this.writer = createTextWriter(newLine)
             this.onEmitNode = (hint, node, printCallback) => {
                 setPos(node, this.lastNonTriviaPosition);
@@ -406,9 +416,6 @@ namespace ts.textChanges {
         reset(): void {
             this.writer.reset();
             this.lastNonTriviaPosition = 0;
-            if (this.startWithNewLine) {
-                this.writeLine();
-            }
         }
     }
 }
