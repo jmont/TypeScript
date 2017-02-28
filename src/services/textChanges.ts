@@ -121,71 +121,38 @@ namespace ts.textChanges {
             this.changes.push({ fileName: sourceFile.fileName, range });
         }
 
-        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options?: DeleteNodeOptions): void {
+        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options: DeleteNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endNode.end } });
+            const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endPosition } });
         }
 
-        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options?: ChangeNodeOptions): void {
+        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: oldNode.end } });
         }
 
-        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options?: ChangeNodeOptions): void {
+        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: ChangeNodeOptions = {}): void {
             this.changes.push({ fileName: sourceFile.fileName, range, options, node: newNode });
         }
 
-        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options?: ChangeNodeOptions): void {
+        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endNode.end } });
         }
 
-        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options?: ChangeNodeOptions): void {
+        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options: ChangeNodeOptions = {}): void {
             this.changes.push({ fileName: sourceFile.fileName, options, node: newNode, range: { pos: pos, end: pos } });
         }
 
-        public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options?: ChangeNodeOptions) {
+        public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options: ChangeNodeOptions = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, before, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
         }
 
-        public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options?: ChangeNodeOptions) {
+        public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options: ChangeNodeOptions = {}) {
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: after.end, end: after.end } });
         }
-
-        // public removeRange(fileName: string, range: TextRange) {
-        //     this.changes.push({ fileName, range });
-        // }
-
-        // public replaceNode(fileName: string, range: TextRange, newNode: Node, skipTrailingTriviaOfPreviousNode: boolean) {
-
-        // }
-        // public replace(fileName: string, range: TextRange, newNode: Node, options?: ChangeOptions) {
-        //     this.changes.push({ fileName, node: newNode, range, options });
-        // }
-
-        // public replaceRange(fileName: string, ranges: TextRange[], newNode: Node, options?: ChangeOptions) {
-        //     if (!ranges.length) {
-        //         return;
-        //     }
-        //     const range = {
-        //         pos: ranges[0].pos,
-        //         end: ranges[ranges.length - 1].end
-        //     };
-        //     this.changes.push({ fileName, node: newNode, range, options });
-        // }
-
-        // public insertNodeAt(fileName: string, pos: number, node: Node, options?: ChangeOptions) {
-        //     this.changes.push({ fileName, range: { pos, end: pos }, node, options });
-        // }
-
-        // public insertNodeAfter(fileName: string, node: Node, after: Node, options?: ChangeOptions) {
-        //     this.changes.push({ fileName, node, range: { pos: after.end, end: after.end }, options });
-        // }
-
-        // public insertNodeBefore(fileName: string, node: Node, before: Node, options?: ChangeOptions) {
-        //     this.changes.push({ fileName, node, range: { pos: before.pos, end: before.pos }, options });
-        // }
 
         public getChanges(): FileTextChanges[] {
             const changesPerFile = createMap<Change[]>();
@@ -274,7 +241,6 @@ namespace ts.textChanges {
         }
         const changes = formatting.formatNode(nonFormattedText.node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
         return applyChanges(nonFormattedText.text, changes);
-
     }
 
     export function applyChanges(text: string, changes: TextChange[]): string {

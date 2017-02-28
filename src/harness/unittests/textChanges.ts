@@ -148,6 +148,13 @@ function bar() {
                 changeTracker.deleteRange(sourceFile, { pos: text.indexOf("function foo"), end: text.indexOf("function bar") });
             });
         }
+        function findVariableStatementContaining(name: string, sourceFile: SourceFile) {
+            const varDecl = findChild(name, sourceFile);
+            assert.equal(varDecl.kind, SyntaxKind.VariableDeclaration);
+            const varStatement = varDecl.parent.parent;
+            assert.equal(varStatement.kind, SyntaxKind.VariableStatement);
+            return varStatement;
+        }
         {
             const text = `
 var x = 1; // some comment - 1
@@ -157,29 +164,43 @@ var x = 1; // some comment - 1
 var y = 2; // comment 3
 var z = 3; // comment 4
 `;
-            function findVariableStatementContainingY(sourceFile: SourceFile) {
-                const varDecl = findChild("y", sourceFile);
-                assert.equal(varDecl.kind, SyntaxKind.VariableDeclaration);
-                const varStatement = varDecl.parent.parent;
-                assert.equal(varStatement.kind, SyntaxKind.VariableStatement);
-                return varStatement;
-            }
-
             runSingleFileTest("deleteNode1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
-                // delete raw node range
-                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile));
+                changeTracker.deleteNode(sourceFile, findVariableStatementContaining("y", sourceFile));
             });
             runSingleFileTest("deleteNode2", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
-                // delete ignoring trailing trivia of preceding node
-                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { useNonAdjustedStartPosition: true });
+                changeTracker.deleteNode(sourceFile, findVariableStatementContaining("y", sourceFile), { useNonAdjustedStartPosition: true });
             });
             runSingleFileTest("deleteNode3", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
-                // delete ignoring trailing trivia of preceding node
-                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { useNonAdjustedEndPosition: true });
+                changeTracker.deleteNode(sourceFile, findVariableStatementContaining("y", sourceFile), { useNonAdjustedEndPosition: true });
             });
             runSingleFileTest("deleteNode4", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
-                // delete ignoring trailing trivia of preceding node
-                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
+                changeTracker.deleteNode(sourceFile, findVariableStatementContaining("y", sourceFile), { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
+            });
+        }
+        {
+            const text = `
+// comment 1
+var x = 1; // comment 2
+// comment 3
+var y = 2; // comment 4
+var z = 3; // comment 5
+// comment 6
+var a = 4; // comment 7
+`;
+            runSingleFileTest("deleteNodeRange1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeRange(sourceFile, findVariableStatementContaining("y", sourceFile), findVariableStatementContaining("z", sourceFile));
+            });
+            runSingleFileTest("deleteNodeRange2", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeRange(sourceFile, findVariableStatementContaining("y", sourceFile), findVariableStatementContaining("z", sourceFile),
+                    { useNonAdjustedStartPosition: true });
+            });
+            runSingleFileTest("deleteNodeRange3", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeRange(sourceFile, findVariableStatementContaining("y", sourceFile), findVariableStatementContaining("z", sourceFile),
+                    { useNonAdjustedEndPosition: true });
+            });
+            runSingleFileTest("deleteNodeRange4", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeRange(sourceFile, findVariableStatementContaining("y", sourceFile), findVariableStatementContaining("z", sourceFile),
+                    { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
             });
         }
     });
