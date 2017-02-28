@@ -81,7 +81,8 @@ namespace ts {
                     const changes = changeTracker.getChanges();
                     assert.equal(changes.length, 1);
                     assert.equal(changes[0].fileName, sourceFile.fileName);
-                    return textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
+                    const modified = textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
+                    return `===ORIGINAL===\r\n${text}\r\n===MODIFIED===\r\n${modified}`;
                 });
             });
         }
@@ -121,7 +122,7 @@ namespace M
                         /*body */ createBlock(statements)
                 );
 
-                changeTracker.insertNodeBefore(sourceFile, /*before*/findChild("M2", sourceFile), newFunction, { insertTrailingNewLine: true, skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
+                changeTracker.insertNodeBefore(sourceFile, /*before*/findChild("M2", sourceFile), newFunction, { insertTrailingNewLine: true });
 
                 // replace statements with return statement
                 const newStatement = createReturn(
@@ -130,7 +131,7 @@ namespace M
                         /*typeArguments*/ undefined,
                         /*argumentsArray*/ emptyArray
                     ));
-                changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement, { skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
+                changeTracker.replaceNodeRange(sourceFile, statements[0], lastOrUndefined(statements), newStatement);
             });
         }
         {
@@ -170,7 +171,15 @@ var z = 3; // comment 4
             });
             runSingleFileTest("deleteNode2", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 // delete ignoring trailing trivia of preceding node
-                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { skipTrailingTriviaOfPreviousNodeAndEmptyLines: true });
+                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { useNonAdjustedStartPosition: true });
+            });
+            runSingleFileTest("deleteNode3", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                // delete ignoring trailing trivia of preceding node
+                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { useNonAdjustedEndPosition: true });
+            });
+            runSingleFileTest("deleteNode4", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                // delete ignoring trailing trivia of preceding node
+                changeTracker.deleteNode(sourceFile, findVariableStatementContainingY(sourceFile), { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
             });
         }
     });

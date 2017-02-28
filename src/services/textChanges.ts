@@ -17,20 +17,27 @@ namespace ts.textChanges {
         (<any>n)["__end"] = end;
     }
 
-    export interface DeleteOptions {
+    export interface DeleteNodeOptions {
         /**
          * Usually node.pos points to a position immediately after the previous token.
          * If this position is used as a beginning of the span to remove - it might lead to removing the trailing trivia of the previous node, i.e:
          * const x; // this is x
          *        ^ - pos for the next variable declaration will point here
          * const y; // this is y
-         * 
-         * Set skipTrailingTriviaOfPreviousNode to true to adjust the start position to the beginning of the next line 
+         *        ^ - end for previous variable declaration
+         * Usually leading trivia of the variable declaration 'y' should not include trailing trivia (whitespace, comment 'this is x' and newline) from the preceding 
+         * variable declaration and trailing trivia for 'y' should include (whitespace, comment 'this is y', newline).
+         * By default when removing nodes we adjust start and end positions to respect specification of the trivia above.
+         * If pos\end should be interpreted literally 'useNonAdjustedStartPosition' or 'useNonAdjustedEndPosition' should be set to true
          */
-        skipTrailingTriviaOfPreviousNodeAndEmptyLines?: boolean
+        useNonAdjustedStartPosition?: boolean
+        /**
+         * See description for useNonAdjustedStartPosition
+         */
+        useNonAdjustedEndPosition?: boolean
     }
 
-    export interface ChangeOptions extends DeleteOptions {
+    export interface ChangeNodeOptions extends DeleteNodeOptions {
         /**
          * Set this value to true to make sure that node text of newly inserted node ends with new line
          */
@@ -44,11 +51,11 @@ namespace ts.textChanges {
         readonly range: TextRange;
         readonly oldNode?: Node;
         readonly node?: Node;
-        readonly options?: ChangeOptions;
+        readonly options?: ChangeNodeOptions;
     }
 
-    function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: DeleteOptions) {
-        if (!options.skipTrailingTriviaOfPreviousNodeAndEmptyLines) {
+    function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: DeleteNodeOptions) {
+        if (options.useNonAdjustedStartPosition) {
             return node.getFullStart();
         }
         const fullStart = node.getFullStart();
@@ -66,6 +73,19 @@ namespace ts.textChanges {
         // skip whitespaces/newlines
         adjustedStartPosition = skipTrivia(sourceFile.text, adjustedStartPosition, /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
         return getStartPositionOfLine(getLineOfLocalPosition(sourceFile, adjustedStartPosition), sourceFile);
+    }
+
+    function getAdjustedEndPosition(sourceFile: SourceFile, node: Node, options: DeleteNodeOptions) {
+        if (options.useNonAdjustedEndPosition) {
+            return node.getEnd();
+        }
+        const end = node.getEnd();
+        const newEnd = skipTrivia(sourceFile.text, end, /*stopAfterLineBreak*/ true);
+        // check if last character before newPos is linebreak
+        // if yes - considered all skipped trivia to be trailing trivia of the node
+        return newEnd !== end && isLineBreak(sourceFile.text.charCodeAt(newEnd - 1))
+            ? newEnd
+            : end;
     }
 
     export class ChangeTracker {
@@ -86,9 +106,10 @@ namespace ts.textChanges {
          * @param node - node to remove
          * @param options - options to tweak deletion 
          */
-        public deleteNode(sourceFile: SourceFile, node: Node, options: DeleteOptions = {}): void {
+        public deleteNode(sourceFile: SourceFile, node: Node, options: DeleteNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, node, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: node.end } });
+            const endPosition = getAdjustedEndPosition(sourceFile, node, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endPosition } });
         }
 
         /**
@@ -100,35 +121,35 @@ namespace ts.textChanges {
             this.changes.push({ fileName: sourceFile.fileName, range });
         }
 
-        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options?: DeleteOptions): void {
+        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options?: DeleteNodeOptions): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endNode.end } });
         }
 
-        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options?: ChangeOptions): void {
+        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options?: ChangeNodeOptions): void {
             const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: oldNode.end } });
         }
 
-        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options?: ChangeOptions): void {
+        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options?: ChangeNodeOptions): void {
             this.changes.push({ fileName: sourceFile.fileName, range, options, node: newNode });
         }
 
-        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options?: ChangeOptions): void {
+        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options?: ChangeNodeOptions): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endNode.end } });
         }
 
-        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options?: ChangeOptions): void {
+        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options?: ChangeNodeOptions): void {
             this.changes.push({ fileName: sourceFile.fileName, options, node: newNode, range: { pos: pos, end: pos } });
         }
 
-        public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options?: ChangeOptions) {
+        public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options?: ChangeNodeOptions) {
             const startPosition = getAdjustedStartPosition(sourceFile, before, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
         }
 
-        public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options?: ChangeOptions) {
+        public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options?: ChangeNodeOptions) {
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: after.end, end: after.end } });
         }
 
