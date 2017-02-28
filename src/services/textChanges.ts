@@ -47,7 +47,7 @@ namespace ts.textChanges {
          */
         indentation?: number;
         /**
-         * Text of inserted node will be formatted with this indentation, otherwise indentation will be inferred from the node kind
+         * Text of inserted node will be formatted with this delta, otherwise delta will be inferred from the new node kind
          */
         delta?: number;
     }
@@ -161,7 +161,8 @@ namespace ts.textChanges {
         }
 
         public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options: ChangeNodeOptions = {}) {
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: after.end, end: after.end } });
+            const endPosition = getAdjustedStartPosition(sourceFile, after, options);
+            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: endPosition, end: endPosition } });
         }
 
         public getChanges(): FileTextChanges[] {
