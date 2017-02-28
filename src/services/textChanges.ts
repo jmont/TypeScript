@@ -127,13 +127,13 @@ namespace ts.textChanges {
             this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endPosition } });
         }
 
+        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: ChangeNodeOptions = {}): void {
+            this.changes.push({ fileName: sourceFile.fileName, range, options, node: newNode });
+        }
+
         public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
             this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: oldNode.end } });
-        }
-
-        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: ChangeNodeOptions = {}): void {
-            this.changes.push({ fileName: sourceFile.fileName, range, options, node: newNode });
         }
 
         public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
@@ -199,11 +199,10 @@ namespace ts.textChanges {
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
-            // TODO:
             const initialIndentation = change.oldNode
                 ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, this.formatOptions)
                 : 0;
-            const delta = 0;
+            const delta = formatting.SmartIndenter.shouldIndentChildNode(change.node) ? this.formatOptions.indentSize : 0;
             return applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions)
         }
 

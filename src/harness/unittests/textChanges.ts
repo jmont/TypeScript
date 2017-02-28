@@ -203,5 +203,46 @@ var a = 4; // comment 7
                     { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
             });
         }
+        {
+            const text = `
+// comment 1
+var x = 1; // comment 2
+// comment 3
+var y = 2; // comment 4
+var z = 3; // comment 5
+// comment 6
+var a = 4; // comment 7`;
+            function createClass() {
+                return createClassDeclaration(
+                    /*decorators*/ undefined,
+                    [ 
+                        createToken(SyntaxKind.PublicKeyword)
+                    ],
+                    "class1",
+                    /*typeParameters*/ undefined,
+                    [ 
+                        createHeritageClause(
+                            SyntaxKind.ImplementsKeyword,
+                            [
+                                createExpressionWithTypeArguments(/*typeArguments*/ undefined, createIdentifier("interface1"))
+                            ]
+                        )
+                    ],
+                    [
+                        createProperty(
+                            /*decorators*/ undefined,
+                            /*modifiers*/ undefined,
+                            "property1",
+                            /*questionToken*/ undefined,
+                            createKeywordTypeNode(SyntaxKind.BooleanKeyword),
+                            /*initializer*/ undefined
+                        )
+                    ]
+                );
+            }
+            runSingleFileTest("replaceRange", opts => opts.placeOpenBraceOnNewLineForFunctions = true, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
+                changeTracker.replaceRange(sourceFile, { pos: text.indexOf("var y"), end: text.indexOf("var a") }, createClass(), { insertTrailingNewLine: true });
+            })
+        }
     });
 }
