@@ -330,5 +330,20 @@ var a = 4; // comment 7`;
                 changeTracker.insertNodeAt(sourceFile, text.indexOf("; // comment 4"), createTestVariableDeclaration("z1"));
             });
         }
+        {
+            const text = `
+namespace M {
+    // comment 1
+    var x = 1; // comment 2
+    // comment 3
+    var y; // comment 4
+    var z = 3; // comment 5
+    // comment 6
+    var a = 4; // comment 7
+}`;
+            runSingleFileTest("insertNodeBefore1", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeBefore(sourceFile, findVariableStatementContaining("y", sourceFile), createTestClass(), { insertTrailingNewLine: true });
+            });
+        }
     });
 }
