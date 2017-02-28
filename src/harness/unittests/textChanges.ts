@@ -207,6 +207,37 @@ var a = 4; // comment 7
                     { useNonAdjustedStartPosition: true, useNonAdjustedEndPosition: true });
             });
         }
+        function createTestVariableDeclaration(name: string) {
+            return createVariableDeclaration(name, /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true))
+        }
+        function createTestClass() {
+            return createClassDeclaration(
+                    /*decorators*/ undefined,
+                [
+                    createToken(SyntaxKind.PublicKeyword)
+                ],
+                "class1",
+                    /*typeParameters*/ undefined,
+                [
+                    createHeritageClause(
+                        SyntaxKind.ImplementsKeyword,
+                        [
+                            createExpressionWithTypeArguments(/*typeArguments*/ undefined, createIdentifier("interface1"))
+                        ]
+                    )
+                ],
+                [
+                    createProperty(
+                            /*decorators*/ undefined,
+                            /*modifiers*/ undefined,
+                        "property1",
+                            /*questionToken*/ undefined,
+                        createKeywordTypeNode(SyntaxKind.BooleanKeyword),
+                            /*initializer*/ undefined
+                    )
+                ]
+            );
+        }
         {
             const text = `
 // comment 1
@@ -216,34 +247,6 @@ var y = 2; // comment 4
 var z = 3; // comment 5
 // comment 6
 var a = 4; // comment 7`;
-            function createTestClass() {
-                return createClassDeclaration(
-                    /*decorators*/ undefined,
-                    [
-                        createToken(SyntaxKind.PublicKeyword)
-                    ],
-                    "class1",
-                    /*typeParameters*/ undefined,
-                    [
-                        createHeritageClause(
-                            SyntaxKind.ImplementsKeyword,
-                            [
-                                createExpressionWithTypeArguments(/*typeArguments*/ undefined, createIdentifier("interface1"))
-                            ]
-                        )
-                    ],
-                    [
-                        createProperty(
-                            /*decorators*/ undefined,
-                            /*modifiers*/ undefined,
-                            "property1",
-                            /*questionToken*/ undefined,
-                            createKeywordTypeNode(SyntaxKind.BooleanKeyword),
-                            /*initializer*/ undefined
-                        )
-                    ]
-                );
-            }
             runSingleFileTest("replaceRange", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
                 changeTracker.replaceRange(sourceFile, { pos: text.indexOf("var y"), end: text.indexOf("var a") }, createTestClass(), { insertTrailingNewLine: true });
             });
@@ -252,7 +255,7 @@ var a = 4; // comment 7`;
             });
 
             runSingleFileTest("replaceRangeNoLineBreakBefore", setNewLineForOpenBraceInFunctions, `const x = 1, y = "2";`, /*validateNodes*/ false, (sourceFile, changeTracker) => {
-                const newNode = createVariableDeclaration("z1", /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true));
+                const newNode = createTestVariableDeclaration("z1");
                 changeTracker.replaceRange(sourceFile, { pos: sourceFile.text.indexOf("y"), end: sourceFile.text.indexOf(";") }, newNode);
             });
         }
@@ -263,7 +266,7 @@ namespace A {
 }
 `;
             runSingleFileTest("replaceNode1NoLineBreakBefore", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
-                const newNode = createVariableDeclaration("z1", /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true));
+                const newNode = createTestVariableDeclaration("z1");
                 changeTracker.replaceNode(sourceFile, findChild("y", sourceFile), newNode);
             });
         }
@@ -316,12 +319,15 @@ var a = 4; // comment 7`;
 // comment 1
 var x = 1; // comment 2
 // comment 3
-var y = 2; // comment 4
+var y; // comment 4
 var z = 3; // comment 5
 // comment 6
 var a = 4; // comment 7`;
             runSingleFileTest("insertNodeAt1", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
                 changeTracker.insertNodeAt(sourceFile, text.indexOf("var y"), createTestClass(), { insertTrailingNewLine: true });
+            });
+            runSingleFileTest("insertNodeAt2", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeAt(sourceFile, text.indexOf("; // comment 4"), createTestVariableDeclaration("z1"));
             });
         }
     });
