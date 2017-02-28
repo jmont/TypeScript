@@ -76,7 +76,7 @@ namespace ts {
                 Harness.Baseline.runBaseline(`textChanges/${caption}.js`, () => {
                     const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
                     const { rulesProvider, options } = getRuleProviderAndOptions(setupFormatOptions);
-                    const changeTracker = new textChanges.ChangeTracker(_ => sourceFile, NewLineKind.CarriageReturnLineFeed, rulesProvider, options, validateNodes ? verifyPositions : undefined);
+                    const changeTracker = new textChanges.ChangeTracker(NewLineKind.CarriageReturnLineFeed, rulesProvider, options, validateNodes ? verifyPositions : undefined);
                     testBlock(sourceFile, changeTracker);
                     const changes = changeTracker.getChanges();
                     assert.equal(changes.length, 1);

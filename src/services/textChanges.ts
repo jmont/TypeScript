@@ -59,10 +59,8 @@ namespace ts.textChanges {
 
     export type ChangeNodeOptions = ConfigurableStartEnd & InsertNodeOptions;
 
-    export type SourceFileLookup = (fileName: string) => SourceFile | undefined;
-
     interface Change {
-        readonly fileName: string;
+        readonly sourceFile: SourceFile;
         readonly range: TextRange;
         readonly oldNode?: Node;
         readonly node?: Node;
@@ -104,11 +102,9 @@ namespace ts.textChanges {
     }
 
     export class ChangeTracker {
-
         private changes: Change[] = [];
 
         constructor(
-            private readonly sourceFileLookup: SourceFileLookup,
             private readonly newLine: NewLineKind,
             private readonly rulesProvider: formatting.RulesProvider,
             private readonly formatOptions: FormatCodeSettings,
@@ -124,7 +120,7 @@ namespace ts.textChanges {
         public deleteNode(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, node, options);
             const endPosition = getAdjustedEndPosition(sourceFile, node, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endPosition } });
+            this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
 
         /**
@@ -133,64 +129,63 @@ namespace ts.textChanges {
          * @param range - range to remove
          */
         public deleteRange(sourceFile: SourceFile, range: TextRange): void {
-            this.changes.push({ fileName: sourceFile.fileName, range });
+            this.changes.push({ sourceFile, range });
         }
 
         public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options: ConfigurableStartEnd = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, range: { pos: startPosition, end: endPosition } });
+            this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
 
         public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: InsertNodeOptions = {}): void {
-            this.changes.push({ fileName: sourceFile.fileName, range, options, node: newNode });
+            this.changes.push({ sourceFile, range, options, node: newNode });
         }
 
         public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
             const endPosition = getAdjustedEndPosition(sourceFile, oldNode, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode, node: newNode, range: { pos: startPosition, end: endPosition } });
+            this.changes.push({ sourceFile, options, oldNode, node: newNode, range: { pos: startPosition, end: endPosition } });
         }
 
         public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endPosition } });
+            this.changes.push({ sourceFile, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endPosition } });
         }
 
         public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options: InsertNodeOptions = {}): void {
-            this.changes.push({ fileName: sourceFile.fileName, options, node: newNode, range: { pos: pos, end: pos } });
+            this.changes.push({ sourceFile, options, node: newNode, range: { pos: pos, end: pos } });
         }
 
         public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options: InsertNodeOptions & ConfigurableStart = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, before, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
+            this.changes.push({ sourceFile, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
         }
 
         public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options: InsertNodeOptions & ConfigurableEnd = {}) {
             const endPosition = getAdjustedEndPosition(sourceFile, after, options);
-            this.changes.push({ fileName: sourceFile.fileName, options, oldNode: after, node: newNode, range: { pos: endPosition, end: endPosition } });
+            this.changes.push({ sourceFile, options, oldNode: after, node: newNode, range: { pos: endPosition, end: endPosition } });
         }
 
         public getChanges(): FileTextChanges[] {
-            const changesPerFile = createMap<Change[]>();
+            const changesPerFile = createFileMap<Change[]>();
             // group changes per file
             for (const c of this.changes) {
-                let changesInFile = changesPerFile.get(c.fileName);
+                let changesInFile = changesPerFile.get(c.sourceFile.path);
                 if (!changesInFile) {
-                    changesPerFile.set(c.fileName, changesInFile = []);
-                }
+                    changesPerFile.set(c.sourceFile.path, changesInFile = []);
+                }[]
                 changesInFile.push(c);
             }
             // convert changes
             const fileChangesList: FileTextChanges[] = [];
-            forEachEntry(changesPerFile, (changesInFile, k) => {
-                const sourceFile = this.sourceFileLookup(k);
-                Debug.assert(sourceFile !== undefined);
-
+            changesPerFile.forEachValue(path => {
+                const changesInFile = changesPerFile.get(path);
+                const sourceFile = changesInFile[0].sourceFile;
                 ChangeTracker.normalize(changesInFile);
 
-                const fileTextChanges: FileTextChanges = { fileName: k, textChanges: [] };
+                const fileTextChanges: FileTextChanges = { fileName: sourceFile.fileName, textChanges: [] };
                 for (const c of changesInFile) {
                     fileTextChanges.textChanges.push({
                         span: this.computeSpan(c, sourceFile),
