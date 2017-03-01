@@ -24,6 +24,7 @@
 /// <reference path='transpile.ts' />
 /// <reference path='formatting\formatting.ts' />
 /// <reference path='formatting\smartIndenter.ts' />
+/// <reference path='textChanges.ts' />
 /// <reference path='codeFixProvider.ts' />
 /// <reference path='codefixes\fixes.ts' />
 
@@ -1682,7 +1683,7 @@ namespace ts {
             return [];
         }
 
-        function getCodeFixesAtPosition(fileName: string, start: number, end: number, errorCodes: number[]): CodeAction[] {
+        function getCodeFixesAtPosition(fileName: string, start: number, end: number, errorCodes: number[], formatOptions: FormatCodeSettings): CodeAction[] {
             synchronizeHostData();
             const sourceFile = getValidSourceFile(fileName);
             const span = { start, length: end - start };
@@ -1700,7 +1701,8 @@ namespace ts {
                     program: program,
                     newLineCharacter: newLineChar,
                     host: host,
-                    cancellationToken: cancellationToken
+                    cancellationToken: cancellationToken,
+                    rulesProvider: getRuleProvider(formatOptions)
                 };
 
                 const fixes = codefix.getFixes(context);

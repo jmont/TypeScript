@@ -17,7 +17,7 @@ namespace ts {
             }
         }
 
-        function getRuleProviderAndOptions(action?: (opts: FormatCodeSettings) => void) {
+        function getRuleProvider(action?: (opts: FormatCodeSettings) => void) {
             const options = {
                 indentSize: 4,
                 tabSize: 4,
@@ -44,7 +44,7 @@ namespace ts {
             }
             const rulesProvider = new formatting.RulesProvider();
             rulesProvider.ensureUpToDate(options);
-            return { rulesProvider, options };
+            return rulesProvider;
         }
 
         function verifyPositions({ text, node }: textChanges.NonFormattedText): void {
@@ -75,8 +75,8 @@ namespace ts {
             it(caption, () => {
                 Harness.Baseline.runBaseline(`textChanges/${caption}.js`, () => {
                     const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
-                    const { rulesProvider, options } = getRuleProviderAndOptions(setupFormatOptions);
-                    const changeTracker = new textChanges.ChangeTracker(NewLineKind.CarriageReturnLineFeed, rulesProvider, options, validateNodes ? verifyPositions : undefined);
+                    const rulesProvider = getRuleProvider(setupFormatOptions);
+                    const changeTracker = new textChanges.ChangeTracker(NewLineKind.CarriageReturnLineFeed, rulesProvider, validateNodes ? verifyPositions : undefined);
                     testBlock(sourceFile, changeTracker);
                     const changes = changeTracker.getChanges();
                     assert.equal(changes.length, 1);
@@ -357,7 +357,7 @@ namespace M {
                 changeTracker.insertNodeAfter(sourceFile, findVariableStatementContaining("y", sourceFile), createTestClass(), { insertTrailingNewLine: true });
             });
             runSingleFileTest("insertNodeAfter2", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
-                changeTracker.insertNodeAfter(sourceFile,findChild("M", sourceFile), createTestClass(), { insertLeadingNewLine: true });
+                changeTracker.insertNodeAfter(sourceFile, findChild("M", sourceFile), createTestClass(), { insertLeadingNewLine: true });
             });
         }
     });

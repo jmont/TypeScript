@@ -314,7 +314,7 @@ namespace ts.formatting {
     }
 
     /* @internal */
-    export function formatNode(node: Node, sourceFileLike: SourceFileLike, languageVariant: LanguageVariant, initialIndentation: number, delta: number,  rulesProvider: RulesProvider, options: FormatCodeSettings): TextChange[] {
+    export function formatNode(node: Node, sourceFileLike: SourceFileLike, languageVariant: LanguageVariant, initialIndentation: number, delta: number,  rulesProvider: RulesProvider): TextChange[] {
         const range = { pos: 0, end: sourceFileLike.text.length }
         return formatSpanWorker(
             range,
@@ -322,7 +322,7 @@ namespace ts.formatting {
             initialIndentation,
             delta,
             getFormattingScanner(sourceFileLike.text, languageVariant, range.pos, range.end),
-            options,
+            rulesProvider.getFormatOptions(),
             rulesProvider,
             FormattingRequestKind.FormatSelection,
             _ => false,

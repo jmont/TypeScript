@@ -107,7 +107,6 @@ namespace ts.textChanges {
         constructor(
             private readonly newLine: NewLineKind,
             private readonly rulesProvider: formatting.RulesProvider,
-            private readonly formatOptions: FormatCodeSettings,
             private readonly validator?: (text: NonFormattedText) => void) {
         }
 
@@ -212,22 +211,23 @@ namespace ts.textChanges {
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
+            const formatOptions = this.rulesProvider.getFormatOptions();
             const initialIndentation =
                 change.options.indentation !== undefined
                     ? change.options.indentation
                     : change.oldNode
-                        ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, this.formatOptions)
+                        ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, formatOptions)
                         : 0;
             const delta =
                 change.options.delta !== undefined
                     ? change.options.delta
                     : formatting.SmartIndenter.shouldIndentChildNode(change.node)
-                        ? this.formatOptions.indentSize
+                        ? formatOptions.indentSize
                         : 0;
             const pos = change.range.pos;
             const lineStart = getLineStartPositionForPosition(pos, sourceFile);
 
-            let text = applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider, this.formatOptions);
+            let text = applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider);
             // strip initial indentation (spaces or tabs) if text will be inserted in the middle of the line
             text = pos !== lineStart ? text.replace(/^\s+/, "") : text;
             const newLineString = getNewLineCharacter(this.newLine);
@@ -262,14 +262,14 @@ namespace ts.textChanges {
         return { text: writer.getText(), node: assignPositionsToNode(node) };
     }
 
-    export function applyFormatting(nonFormattedText: NonFormattedText, sourceFile: SourceFile, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider, formatSettings: FormatCodeSettings) {
+    export function applyFormatting(nonFormattedText: NonFormattedText, sourceFile: SourceFile, initialIndentation: number, delta: number, rulesProvider: formatting.RulesProvider) {
         const lineMap = computeLineStarts(nonFormattedText.text);
         const file: SourceFileLike = {
             text: nonFormattedText.text,
             lineMap,
             getLineAndCharacterOfPosition: pos => computeLineAndCharacterOfPosition(lineMap, pos)
         }
-        const changes = formatting.formatNode(nonFormattedText.node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider, formatSettings);
+        const changes = formatting.formatNode(nonFormattedText.node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider);
         return applyChanges(nonFormattedText.text, changes);
     }
 
