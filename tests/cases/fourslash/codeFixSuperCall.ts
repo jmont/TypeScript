@@ -7,5 +7,5 @@
 ////    |]}
 ////}
 verify.rangeAfterCodeFix(`
-        super();    
+        super();
     `, /*includeWhitespace*/ true);
