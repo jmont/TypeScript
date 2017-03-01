@@ -104,6 +104,10 @@ namespace ts.textChanges {
     export class ChangeTracker {
         private changes: Change[] = [];
 
+        public static fromCodeFixContext(context: CodeFixContext) {
+            return new ChangeTracker(context.newLineCharacter === "\n" ? NewLineKind.LineFeed : NewLineKind.CarriageReturnLineFeed, context.rulesProvider);
+        }
+
         constructor(
             private readonly newLine: NewLineKind,
             private readonly rulesProvider: formatting.RulesProvider,
@@ -215,9 +219,7 @@ namespace ts.textChanges {
             const initialIndentation =
                 change.options.indentation !== undefined
                     ? change.options.indentation
-                    : change.oldNode
-                        ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, formatOptions)
-                        : 0;
+                    : formatting.SmartIndenter.getIndentation(change.range.pos, sourceFile, formatOptions);
             const delta =
                 change.options.delta !== undefined
                     ? change.options.delta

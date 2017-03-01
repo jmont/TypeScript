@@ -1384,8 +1384,8 @@ namespace ts {
         };
     }
 
-    export function getOpenBraceEnd(constructor: ConstructorDeclaration, sourceFile: SourceFile) {
+    export function getOpenBrace(constructor: ConstructorDeclaration, sourceFile: SourceFile) {
         // First token is the open curly, this is where we want to put the 'super' call.
-        return constructor.body.getFirstToken(sourceFile).getEnd();
+        return constructor.body.getFirstToken(sourceFile);
     }
 }
