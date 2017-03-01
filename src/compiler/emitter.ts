@@ -633,6 +633,11 @@ namespace ts {
             if (isExpression(node)) {
                 return pipelineEmitExpression(trySubstituteNode(EmitHint.Expression, node));
             }
+
+            if (isToken(node)) {
+                writeTokenText(kind);
+                return;
+            }
         }
 
         function pipelineEmitExpression(node: Node): void {
