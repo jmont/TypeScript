@@ -1003,10 +1003,6 @@ namespace ts {
         return undefined;
     }
 
-    export function isToken(n: Node): boolean {
-        return n.kind >= SyntaxKind.FirstToken && n.kind <= SyntaxKind.LastToken;
-    }
-
     export function isWord(kind: SyntaxKind): boolean {
         return kind === SyntaxKind.Identifier || isKeyword(kind);
     }
