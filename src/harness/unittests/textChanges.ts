@@ -8,7 +8,7 @@ namespace ts {
             return find(n);
 
             function find(node: Node): Node {
-                if (isDeclaration(node) && isIdentifier(node.name) && node.name.text === name) {
+                if (isDeclaration(node) && node.name && isIdentifier(node.name) && node.name.text === name) {
                     return node
                 }
                 else {
@@ -358,6 +358,50 @@ namespace M {
             });
             runSingleFileTest("insertNodeAfter2", setNewLineForOpenBraceInFunctions, text, /*validateNodes*/ true, (sourceFile, changeTracker) => {
                 changeTracker.insertNodeAfter(sourceFile, findChild("M", sourceFile), createTestClass(), { insertLeadingNewLine: true });
+            });
+        }
+        {
+            function findOpenBraceForConstructor(sourceFile: SourceFile) {
+                const classDecl = <ClassDeclaration>sourceFile.statements[0];
+                const constructorDecl = forEach(classDecl.members, m => m.kind === SyntaxKind.Constructor && (<ConstructorDeclaration>m).body && <ConstructorDeclaration>m);
+                return constructorDecl.body.getFirstToken();
+            }
+            function createTestSuperCall() {
+                const superCall = createCall(
+                    createSuper(),
+                    /*typeArguments*/ undefined,
+                    /*argumentsArray*/ emptyArray
+                );
+                return createStatement(superCall);
+            }
+            const text1 = `
+class A {
+    constructor() {
+    }
+}
+`;
+            runSingleFileTest("insertNodeAfter3", noop, text1, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeAfter(sourceFile, findOpenBraceForConstructor(sourceFile), createTestSuperCall(), { insertTrailingNewLine: true });
+            });
+            const text2 = `
+class A {
+    constructor() {
+        var x = 1;
+    }
+}
+`;
+            runSingleFileTest("insertNodeAfter4", noop, text2, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeAfter(sourceFile, findVariableStatementContaining("x", sourceFile), createTestSuperCall(), { insertTrailingNewLine: true });
+            });
+            const text3 = `
+class A {
+    constructor() {
+
+    }
+}
+`;
+            runSingleFileTest("insertNodeAfter3-block with newline", noop, text3, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.insertNodeAfter(sourceFile, findOpenBraceForConstructor(sourceFile), createTestSuperCall(), { insertTrailingNewLine: true });
             });
         }
     });

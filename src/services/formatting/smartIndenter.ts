@@ -8,7 +8,7 @@ namespace ts.formatting {
             Unknown = -1
         }
 
-        export function getIndentation(position: number, sourceFile: SourceFile, options: EditorSettings): number {
+        export function getIndentation(position: number, sourceFile: SourceFile, options: EditorSettings, assumeNewLineBeforeCloseBrace = false): number {
             if (position > sourceFile.text.length) {
                 return getBaseIndentation(options); // past EOF
             }
@@ -71,13 +71,14 @@ namespace ts.formatting {
                 if (positionBelongsToNode(current, position, sourceFile) && shouldIndentChildNode(current, previous)) {
                     currentStart = getStartLineAndCharacterForNode(current, sourceFile);
 
-                    if (nextTokenIsCurlyBraceOnSameLineAsCursor(precedingToken, current, lineAtPosition, sourceFile)) {
-                        indentationDelta = 0;
+                    const nextTokenKind = nextTokenIsCurlyBraceOnSameLineAsCursor(precedingToken, current, lineAtPosition, sourceFile);
+                    if (nextTokenKind !== NextTokenKind.Unknown) {
+                        // handle cases when codefix is about to be inserted before the close brace
+                        indentationDelta = assumeNewLineBeforeCloseBrace && nextTokenKind === NextTokenKind.CloseBrace ? options.indentSize : 0;
                     }
                     else {
                         indentationDelta = lineAtPosition !== currentStart.line ? options.indentSize : 0;
                     }
-
                     break;
                 }
 
@@ -218,15 +219,21 @@ namespace ts.formatting {
             return findColumnForFirstNonWhitespaceCharacterInLine(currentLineAndChar, sourceFile, options);
         }
 
-        function nextTokenIsCurlyBraceOnSameLineAsCursor(precedingToken: Node, current: Node, lineAtPosition: number, sourceFile: SourceFile): boolean {
+        const enum NextTokenKind {
+            Unknown,
+            OpenBrace,
+            CloseBrace
+        }
+
+        function nextTokenIsCurlyBraceOnSameLineAsCursor(precedingToken: Node, current: Node, lineAtPosition: number, sourceFile: SourceFile): NextTokenKind {
             const nextToken = findNextToken(precedingToken, current);
             if (!nextToken) {
-                return false;
+                return NextTokenKind.Unknown;
             }
 
             if (nextToken.kind === SyntaxKind.OpenBraceToken) {
                 // open braces are always indented at the parent level
-                return true;
+                return NextTokenKind.OpenBrace;
             }
             else if (nextToken.kind === SyntaxKind.CloseBraceToken) {
                 // close braces are indented at the parent level if they are located on the same line with cursor
@@ -239,10 +246,10 @@ namespace ts.formatting {
                 // $}
 
                 const nextTokenStartLine = getStartLineAndCharacterForNode(nextToken, sourceFile).line;
-                return lineAtPosition === nextTokenStartLine;
+                return lineAtPosition === nextTokenStartLine ? NextTokenKind.CloseBrace : NextTokenKind.Unknown;
             }
 
-            return false;
+            return NextTokenKind.Unknown;
         }
 
         function getStartLineAndCharacterForNode(n: Node, sourceFile: SourceFileLike): LineAndCharacter {
