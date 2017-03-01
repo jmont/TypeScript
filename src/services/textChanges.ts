@@ -211,12 +211,16 @@ namespace ts.textChanges {
             if (this.validator) {
                 this.validator(nonFormattedText);
             }
+
             const formatOptions = this.rulesProvider.getFormatOptions();
+            const pos = change.range.pos;
+            const posStartsLine =  getLineStartPositionForPosition(pos, sourceFile) === pos;
+
             const initialIndentation =
                 change.options.indentation !== undefined
                     ? change.options.indentation
                     : change.oldNode
-                        ? formatting.SmartIndenter.getIndentationForNode(change.oldNode, undefined, sourceFile, formatOptions)
+                        ? formatting.SmartIndenter.getIndentation(change.range.pos, sourceFile, formatOptions, posStartsLine || change.options.insertLeadingNewLine)
                         : 0;
             const delta =
                 change.options.delta !== undefined
@@ -224,12 +228,11 @@ namespace ts.textChanges {
                     : formatting.SmartIndenter.shouldIndentChildNode(change.node)
                         ? formatOptions.indentSize
                         : 0;
-            const pos = change.range.pos;
-            const lineStart = getLineStartPositionForPosition(pos, sourceFile);
 
             let text = applyFormatting(nonFormattedText, sourceFile, initialIndentation, delta, this.rulesProvider);
             // strip initial indentation (spaces or tabs) if text will be inserted in the middle of the line
-            text = pos !== lineStart ? text.replace(/^\s+/, "") : text;
+            text = posStartsLine ? text : text.replace(/^\s+/, "");
+
             const newLineString = getNewLineCharacter(this.newLine);
             if (options.insertLeadingNewLine) {
                 text = newLineString + text;
