@@ -404,5 +404,34 @@ class A {
                 changeTracker.insertNodeAfter(sourceFile, findOpenBraceForConstructor(sourceFile), createTestSuperCall(), { insertTrailingNewLine: true });
             });
         }
+        {
+            const text = `var a = 1, b = 2, c = 3;`
+            runSingleFileTest("deleteNodeInList1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList2", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList3", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+        {
+            const text = `
+namespace M {
+    var a = 1,
+        b = 2,
+        c = 3;
+}`
+            runSingleFileTest("deleteNodeInList4", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList5", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList6", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
     });
 }

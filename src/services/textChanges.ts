@@ -101,6 +101,10 @@ namespace ts.textChanges {
             : end;
     }
 
+    function isSeparator(node: Node, separator: Node): boolean {
+        return node.parent && (separator.kind === SyntaxKind.CommaToken || (separator.kind === SyntaxKind.SemicolonToken && node.parent.kind === SyntaxKind.ObjectLiteralExpression));
+    }
+
     export class ChangeTracker {
         private changes: Change[] = [];
 
@@ -135,6 +139,34 @@ namespace ts.textChanges {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
+        }
+
+        public deleteNodeInList(sourceFile: SourceFile, node: Node, options: ChangeNodeOptions = {}): void {
+            const containingList = formatting.SmartIndenter.getContainingList(node, sourceFile);
+            if (!containingList) {
+                return;
+            }
+            const index = containingList.indexOf(node);
+            if (index < 0) {
+                return;
+            }
+            if (containingList.length === 1) {
+                this.deleteNode(sourceFile, node, options);
+                return;
+            }
+            // TODO: detect list formatted elements
+            if (index !== containingList.length - 1) {
+                const nextToken = getTokenAtPosition(sourceFile, node.end);
+                if (nextToken && isSeparator(node, nextToken)) {
+                    this.deleteNodeRange(sourceFile, node, nextToken);
+                }
+            }
+            else {
+                const previousToken = getTokenAtPosition(sourceFile, containingList[index - 1].end);
+                if (previousToken && isSeparator(node, previousToken)) {
+                    this.deleteNodeRange(sourceFile, previousToken, node, options);
+                }
+            }
         }
 
         public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: InsertNodeOptions = {}): void {
