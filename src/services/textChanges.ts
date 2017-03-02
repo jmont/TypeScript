@@ -141,7 +141,7 @@ namespace ts.textChanges {
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
 
-        public deleteNodeInList(sourceFile: SourceFile, node: Node, options: ChangeNodeOptions = {}): void {
+        public deleteNodeInList(sourceFile: SourceFile, node: Node): void {
             const containingList = formatting.SmartIndenter.getContainingList(node, sourceFile);
             if (!containingList) {
                 return;
@@ -151,20 +151,25 @@ namespace ts.textChanges {
                 return;
             }
             if (containingList.length === 1) {
-                this.deleteNode(sourceFile, node, options);
+                this.deleteNode(sourceFile, node);
                 return;
             }
-            // TODO: detect list formatted elements
             if (index !== containingList.length - 1) {
                 const nextToken = getTokenAtPosition(sourceFile, node.end);
                 if (nextToken && isSeparator(node, nextToken)) {
-                    this.deleteNodeRange(sourceFile, node, nextToken);
+                    // find first non-whitespace position in the leading trivia of the node
+                    const startPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, node, {}), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+                    const nextElement = containingList[index + 1];
+                    /// find first non-whitespace position in the leading trivia of the next node
+                    const endPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, nextElement, {}), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+                    // shift next node so its first non-whitespace position will be moved to the first non-whitespace position of the deleted node
+                    this.deleteRange(sourceFile, { pos: startPosition, end: endPosition });
                 }
             }
             else {
                 const previousToken = getTokenAtPosition(sourceFile, containingList[index - 1].end);
                 if (previousToken && isSeparator(node, previousToken)) {
-                    this.deleteNodeRange(sourceFile, previousToken, node, options);
+                    this.deleteNodeRange(sourceFile, previousToken, node);
                 }
             }
         }
