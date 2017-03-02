@@ -404,5 +404,113 @@ class A {
                 changeTracker.insertNodeAfter(sourceFile, findOpenBraceForConstructor(sourceFile), createTestSuperCall(), { insertTrailingNewLine: true });
             });
         }
+        {
+            const text = `var a = 1, b = 2, c = 3;`
+            runSingleFileTest("deleteNodeInList1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList2", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList3", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+        {
+            const text = `var a = 1,b = 2,c = 3;`
+            runSingleFileTest("deleteNodeInList1_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList2_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList3_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+        {
+            const text = `
+namespace M {
+    var a = 1,
+        b = 2,
+        c = 3;
+}`
+            runSingleFileTest("deleteNodeInList4", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList5", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList6", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+        {
+            const text = `
+namespace M {
+    var a = 1, // comment 1
+        // comment 2
+        b = 2, // comment 3
+        // comment 4
+        c = 3; // comment 5
+}`
+            runSingleFileTest("deleteNodeInList4_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList5_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList6_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+        {
+            const text = `
+function foo(a: number, b: string, c = true) {
+    return 1;
+}`
+            runSingleFileTest("deleteNodeInList7", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList8", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList9", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+        {
+            const text = `
+function foo(a: number,b: string,c = true) {
+    return 1;
+}`
+            runSingleFileTest("deleteNodeInList10", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList11", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList12", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
+{
+            const text = `
+function foo(
+    a: number,
+    b: string,
+    c = true) {
+    return 1;
+}`
+            runSingleFileTest("deleteNodeInList13", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList14", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("b", sourceFile));
+            });
+            runSingleFileTest("deleteNodeInList15", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
+                changeTracker.deleteNodeInList(sourceFile, findChild("c", sourceFile));
+            });
+        }
     });
 }

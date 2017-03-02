@@ -268,7 +268,7 @@ namespace ts.formatting {
             return false;
         }
 
-        function getContainingList(node: Node, sourceFile: SourceFile): NodeArray<Node> {
+        export function getContainingList(node: Node, sourceFile: SourceFile): NodeArray<Node> {
             if (node.parent) {
                 switch (node.parent.kind) {
                     case SyntaxKind.TypeReference:
@@ -311,6 +311,17 @@ namespace ts.formatting {
                         }
                         break;
                     }
+                    case SyntaxKind.VariableDeclarationList:
+                        if (rangeContainsStartEnd((<VariableDeclarationList>node.parent).declarations, node.getStart(sourceFile), node.getEnd())) {
+                            return (<VariableDeclarationList>node.parent).declarations;
+                        }
+                        break;
+                    case SyntaxKind.NamedImports:
+                    case SyntaxKind.NamedExports:
+                        if (rangeContainsStartEnd((<NamedImportsOrExports>node.parent).elements, node.getStart(sourceFile), node.getEnd())) {
+                            return (<NamedImportsOrExports>node.parent).elements;
+                        }
+                        break;
                 }
             }
             return undefined;

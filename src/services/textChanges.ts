@@ -101,6 +101,10 @@ namespace ts.textChanges {
             : end;
     }
 
+    function isSeparator(node: Node, separator: Node): boolean {
+        return node.parent && (separator.kind === SyntaxKind.CommaToken || (separator.kind === SyntaxKind.SemicolonToken && node.parent.kind === SyntaxKind.ObjectLiteralExpression));
+    }
+
     export class ChangeTracker {
         private changes: Change[] = [];
 
@@ -139,6 +143,39 @@ namespace ts.textChanges {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
+        }
+
+        public deleteNodeInList(sourceFile: SourceFile, node: Node): void {
+            const containingList = formatting.SmartIndenter.getContainingList(node, sourceFile);
+            if (!containingList) {
+                return;
+            }
+            const index = containingList.indexOf(node);
+            if (index < 0) {
+                return;
+            }
+            if (containingList.length === 1) {
+                this.deleteNode(sourceFile, node);
+                return;
+            }
+            if (index !== containingList.length - 1) {
+                const nextToken = getTokenAtPosition(sourceFile, node.end);
+                if (nextToken && isSeparator(node, nextToken)) {
+                    // find first non-whitespace position in the leading trivia of the node
+                    const startPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, node, {}), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+                    const nextElement = containingList[index + 1];
+                    /// find first non-whitespace position in the leading trivia of the next node
+                    const endPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, nextElement, {}), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+                    // shift next node so its first non-whitespace position will be moved to the first non-whitespace position of the deleted node
+                    this.deleteRange(sourceFile, { pos: startPosition, end: endPosition });
+                }
+            }
+            else {
+                const previousToken = getTokenAtPosition(sourceFile, containingList[index - 1].end);
+                if (previousToken && isSeparator(node, previousToken)) {
+                    this.deleteNodeRange(sourceFile, previousToken, node);
+                }
+            }
         }
 
         public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: InsertNodeOptions = {}): void {
