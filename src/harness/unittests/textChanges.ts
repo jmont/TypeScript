@@ -17,7 +17,7 @@ namespace ts {
             }
         }
 
-        const newLine = NewLineKind.CarriageReturnLineFeed;
+        const newLine = NewLineKind.LineFeed;
         const newLineCharacter = getNewLineCharacter(newLine);
 
         function getRuleProvider(action?: (opts: FormatCodeSettings) => void) {
