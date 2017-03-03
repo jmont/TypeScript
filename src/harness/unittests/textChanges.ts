@@ -17,11 +17,14 @@ namespace ts {
             }
         }
 
+        const newLine = NewLineKind.CarriageReturnLineFeed;
+        const newLineCharacter = getNewLineCharacter(newLine);
+
         function getRuleProvider(action?: (opts: FormatCodeSettings) => void) {
             const options = {
                 indentSize: 4,
                 tabSize: 4,
-                newLineCharacter: "\n",
+                newLineCharacter,
                 convertTabsToSpaces: true,
                 indentStyle: ts.IndentStyle.Smart,
                 insertSpaceAfterConstructor: false,
@@ -76,7 +79,7 @@ namespace ts {
                 Harness.Baseline.runBaseline(`textChanges/${caption}.js`, () => {
                     const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
                     const rulesProvider = getRuleProvider(setupFormatOptions);
-                    const changeTracker = new textChanges.ChangeTracker(NewLineKind.CarriageReturnLineFeed, rulesProvider, validateNodes ? verifyPositions : undefined);
+                    const changeTracker = new textChanges.ChangeTracker(newLine, rulesProvider, validateNodes ? verifyPositions : undefined);
                     testBlock(sourceFile, changeTracker);
                     const changes = changeTracker.getChanges();
                     assert.equal(changes.length, 1);

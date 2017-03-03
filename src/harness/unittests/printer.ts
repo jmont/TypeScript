@@ -93,6 +93,5 @@ namespace ts {
             );
             printsCorrectly("class", {}, printer => printer.printNode(EmitHint.Unspecified, syntheticNode, sourceFile));
         });
-
     });
 }
