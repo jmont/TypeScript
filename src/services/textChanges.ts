@@ -67,7 +67,7 @@ namespace ts.textChanges {
         readonly options?: ChangeNodeOptions;
     }
 
-    function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStart) {
+    export function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStart) {
         if (options.useNonAdjustedStartPosition) {
             return node.getFullStart();
         }
@@ -88,7 +88,7 @@ namespace ts.textChanges {
         return getStartPositionOfLine(getLineOfLocalPosition(sourceFile, adjustedStartPosition), sourceFile);
     }
 
-    function getAdjustedEndPosition(sourceFile: SourceFile, node: Node, options: ConfigurableEnd) {
+    export function getAdjustedEndPosition(sourceFile: SourceFile, node: Node, options: ConfigurableEnd) {
         if (options.useNonAdjustedEndPosition) {
             return node.getEnd();
         }
