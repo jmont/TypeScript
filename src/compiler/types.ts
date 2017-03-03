@@ -2205,6 +2205,9 @@
     }
 
     /* @internal */
+    /**
+     * Subset of properties from SourceFile that are used in multiple utility functions
+     */
     export interface SourceFileLike {
         readonly text: string;
         lineMap: number[]
@@ -3304,7 +3307,7 @@
     }
 
     export interface PluginImport {
-        name: string
+        name: string;
     }
 
     export type CompilerOptionsValue = string | number | boolean | (string | number)[] | string[] | MapLike<string[]> | PluginImport[];

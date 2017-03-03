@@ -17,11 +17,14 @@ namespace ts {
             }
         }
 
+        const printerOptions = { newLine: NewLineKind.LineFeed };
+        const newLineCharacter = getNewLineCharacter(printerOptions);
+
         function getRuleProvider(action?: (opts: FormatCodeSettings) => void) {
             const options = {
                 indentSize: 4,
                 tabSize: 4,
-                newLineCharacter: "\n",
+                newLineCharacter,
                 convertTabsToSpaces: true,
                 indentStyle: ts.IndentStyle.Smart,
                 insertSpaceAfterConstructor: false,
@@ -47,6 +50,7 @@ namespace ts {
             return rulesProvider;
         }
 
+        // validate that positions that were recovered from the printed text actually match positions that will be created if the same text is parsed.
         function verifyPositions({ text, node }: textChanges.NonFormattedText): void {
             const nodeList = flattenNodes(node);
             const sourceFile = createSourceFile("f.ts", text, ScriptTarget.ES2015);
@@ -76,13 +80,13 @@ namespace ts {
                 Harness.Baseline.runBaseline(`textChanges/${caption}.js`, () => {
                     const sourceFile = createSourceFile("source.ts", text, ScriptTarget.ES2015, /*setParentNodes*/ true);
                     const rulesProvider = getRuleProvider(setupFormatOptions);
-                    const changeTracker = new textChanges.ChangeTracker(NewLineKind.CarriageReturnLineFeed, rulesProvider, validateNodes ? verifyPositions : undefined);
+                    const changeTracker = new textChanges.ChangeTracker(printerOptions.newLine, rulesProvider, validateNodes ? verifyPositions : undefined);
                     testBlock(sourceFile, changeTracker);
                     const changes = changeTracker.getChanges();
                     assert.equal(changes.length, 1);
                     assert.equal(changes[0].fileName, sourceFile.fileName);
                     const modified = textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
-                    return `===ORIGINAL===\r\n${text}\r\n===MODIFIED===\r\n${modified}`;
+                    return `===ORIGINAL===${newLineCharacter}${text}${newLineCharacter}===MODIFIED===${newLineCharacter}${modified}`;
                 });
             });
         }

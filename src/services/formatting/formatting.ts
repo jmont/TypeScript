@@ -5,6 +5,7 @@
 
 /* @internal */
 namespace ts.formatting {
+
     export interface TextRangeWithKind extends TextRange {
         kind: SyntaxKind;
     }
@@ -325,7 +326,7 @@ namespace ts.formatting {
             rulesProvider.getFormatOptions(),
             rulesProvider,
             FormattingRequestKind.FormatSelection,
-            _ => false,
+            _ => false, // assume that node does not have any errors
             sourceFileLike);
     }
 

@@ -8,6 +8,18 @@ namespace ts.formatting {
             Unknown = -1
         }
 
+        /**
+         * Computed indentation for a given position in source file
+         * @param position - position in file
+         * @param sourceFile - target source file
+         * @param options - set of editor options that control indentation
+         * @param assumeNewLineBeforeCloseBrace - false when getIndentation is called on the text from the real source file.
+         * true - when we need to assume that position is on the newline. This is usefult for codefixes, i.e.
+         * function f() {
+         * |}
+         * when inserting some text after open brace we would like to get the value of indentation as if newline was already there.
+         * However by default indentation at position | will be 0 so 'assumeNewLineBeforeCloseBrace' allows to override this behavior,
+         */
         export function getIndentation(position: number, sourceFile: SourceFile, options: EditorSettings, assumeNewLineBeforeCloseBrace = false): number {
             if (position > sourceFile.text.length) {
                 return getBaseIndentation(options); // past EOF
@@ -268,15 +280,15 @@ namespace ts.formatting {
             return false;
         }
 
+        function getListIfStartEndIsInListRange(list: NodeArray<Node>, start: number, end: number) {
+            return list && rangeContainsStartEnd(list, start, end) ? list : undefined;
+        }
+
         export function getContainingList(node: Node, sourceFile: SourceFile): NodeArray<Node> {
             if (node.parent) {
                 switch (node.parent.kind) {
                     case SyntaxKind.TypeReference:
-                        if ((<TypeReferenceNode>node.parent).typeArguments &&
-                            rangeContainsStartEnd((<TypeReferenceNode>node.parent).typeArguments, node.getStart(sourceFile), node.getEnd())) {
-                            return (<TypeReferenceNode>node.parent).typeArguments;
-                        }
-                        break;
+                        return getListIfStartEndIsInListRange((<TypeReferenceNode>node.parent).typeArguments, node.getStart(sourceFile), node.getEnd());
                     case SyntaxKind.ObjectLiteralExpression:
                         return (<ObjectLiteralExpression>node.parent).properties;
                     case SyntaxKind.ArrayLiteralExpression:
@@ -291,45 +303,22 @@ namespace ts.formatting {
                     case SyntaxKind.ConstructorType:
                     case SyntaxKind.ConstructSignature: {
                         const start = node.getStart(sourceFile);
-                        if ((<SignatureDeclaration>node.parent).typeParameters &&
-                            rangeContainsStartEnd((<SignatureDeclaration>node.parent).typeParameters, start, node.getEnd())) {
-                            return (<SignatureDeclaration>node.parent).typeParameters;
-                        }
-                        if (rangeContainsStartEnd((<SignatureDeclaration>node.parent).parameters, start, node.getEnd())) {
-                            return (<SignatureDeclaration>node.parent).parameters;
-                        }
-                        break;
+                        return getListIfStartEndIsInListRange((<SignatureDeclaration>node.parent).typeParameters, start, node.getEnd()) ||
+                            getListIfStartEndIsInListRange((<SignatureDeclaration>node.parent).parameters, start, node.getEnd());
                     }
                     case SyntaxKind.ClassDeclaration:
-                        if ((<ClassDeclaration>node.parent).typeParameters &&
-                            rangeContainsStartEnd((<ClassDeclaration>node.parent).typeParameters, node.getStart(sourceFile), node.getEnd())) {
-                            return (<ClassDeclaration>node.parent).typeParameters;
-                        }
-                        break;
+                        return getListIfStartEndIsInListRange((<ClassDeclaration>node.parent).typeParameters, node.getStart(sourceFile), node.getEnd());
                     case SyntaxKind.NewExpression:
                     case SyntaxKind.CallExpression: {
                         const start = node.getStart(sourceFile);
-                        if ((<CallExpression>node.parent).typeArguments &&
-                            rangeContainsStartEnd((<CallExpression>node.parent).typeArguments, start, node.getEnd())) {
-                            return (<CallExpression>node.parent).typeArguments;
-                        }
-                        if ((<CallExpression>node.parent).arguments &&
-                            rangeContainsStartEnd((<CallExpression>node.parent).arguments, start, node.getEnd())) {
-                            return (<CallExpression>node.parent).arguments;
-                        }
-                        break;
+                        return getListIfStartEndIsInListRange((<CallExpression>node.parent).typeArguments, start, node.getEnd()) ||
+                            getListIfStartEndIsInListRange((<CallExpression>node.parent).arguments, start, node.getEnd());
                     }
                     case SyntaxKind.VariableDeclarationList:
-                        if (rangeContainsStartEnd((<VariableDeclarationList>node.parent).declarations, node.getStart(sourceFile), node.getEnd())) {
-                            return (<VariableDeclarationList>node.parent).declarations;
-                        }
-                        break;
+                        return getListIfStartEndIsInListRange((<VariableDeclarationList>node.parent).declarations, node.getStart(sourceFile), node.getEnd());
                     case SyntaxKind.NamedImports:
                     case SyntaxKind.NamedExports:
-                        if (rangeContainsStartEnd((<NamedImportsOrExports>node.parent).elements, node.getStart(sourceFile), node.getEnd())) {
-                            return (<NamedImportsOrExports>node.parent).elements;
-                        }
-                        break;
+                        return getListIfStartEndIsInListRange((<NamedImportsOrExports>node.parent).elements, node.getStart(sourceFile), node.getEnd());
                 }
             }
             return undefined;

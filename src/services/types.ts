@@ -3,12 +3,12 @@ namespace ts {
         getSourceFile(): SourceFile;
         getChildCount(sourceFile?: SourceFile): number;
         getChildAt(index: number, sourceFile?: SourceFile): Node;
-        /* @internal */
-        getChildren(sourceFile?: SourceFileLike): Node[];
         getChildren(sourceFile?: SourceFile): Node[];
         /* @internal */
-        getStart(sourceFile?: SourceFileLike, includeJsDocComment?: boolean): number;
+        getChildren(sourceFile?: SourceFileLike): Node[];
         getStart(sourceFile?: SourceFile, includeJsDocComment?: boolean): number;
+        /* @internal */
+        getStart(sourceFile?: SourceFileLike, includeJsDocComment?: boolean): number;
         getFullStart(): number;
         getEnd(): number;
         getWidth(sourceFile?: SourceFile): number;
@@ -714,8 +714,7 @@ namespace ts {
 
         /** enum E */
         export const enumElement = "enum";
-        // TODO: GH#9983
-        export const enumMemberElement = "const";
+        export const enumMemberElement = "enum member";
 
         /**
          * Inside module and script only

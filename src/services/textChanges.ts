@@ -1,6 +1,10 @@
 /* @internal */
 namespace ts.textChanges {
 
+    /**
+     * Currently for simplicity we store recovered positions on the node itself.
+     * It can be changed to side-table later if we decide that current design is too invasive.
+     */
     function getPos(n: TextRange) {
         return (<any>n)["__pos"];
     }
@@ -79,6 +83,13 @@ namespace ts.textChanges {
         const fullStartLine = getLineStartPositionForPosition(fullStart, sourceFile);
         const startLine = getLineStartPositionForPosition(start, sourceFile);
         if (startLine === fullStartLine) {
+            // full start and start of the node are on the same line
+            //   a,     b;
+            //    ^     ^
+            //    |   start
+            // fullstart
+            // when b is replaced - we usually want to keep the leading trvia
+            // when b is deleted - we delete it
             return forDeleteOperation ? fullStart : start;
         }
         // get start position of the line following the line that contains fullstart position
@@ -107,6 +118,7 @@ namespace ts.textChanges {
 
     export class ChangeTracker {
         private changes: Change[] = [];
+        private readonly newLineCharacter: string;
 
         public static fromCodeFixContext(context: CodeFixContext) {
             return new ChangeTracker(context.newLineCharacter === "\n" ? NewLineKind.LineFeed : NewLineKind.CarriageReturnLineFeed, context.rulesProvider);
@@ -116,25 +128,15 @@ namespace ts.textChanges {
             private readonly newLine: NewLineKind,
             private readonly rulesProvider: formatting.RulesProvider,
             private readonly validator?: (text: NonFormattedText) => void) {
+            this.newLineCharacter = getNewLineCharacter({ newLine });
         }
 
-        /**
-         * Records a change to remove a node from the file
-         * @param sourceFile - target source file (should be the same as node.getSourceFile)
-         * @param node - node to remove
-         * @param options - options to tweak deletion 
-         */
         public deleteNode(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, node, options, /*forDeleteOperation*/ true);
             const endPosition = getAdjustedEndPosition(sourceFile, node, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
 
-        /**
-         * Records a change to remove a text range from the file
-         * @param _sourceFile - target source file
-         * @param range - range to remove
-         */
         public deleteRange(sourceFile: SourceFile, range: TextRange): void {
             this.changes.push({ sourceFile, range });
         }
@@ -274,12 +276,11 @@ namespace ts.textChanges {
             // strip initial indentation (spaces or tabs) if text will be inserted in the middle of the line
             text = posStartsLine ? text : text.replace(/^\s+/, "");
 
-            const newLineString = getNewLineCharacter(this.newLine);
             if (options.insertLeadingNewLine) {
-                text = newLineString + text;
+                text = this.newLineCharacter + text;
             }
             if (options.insertTrailingNewLine) {
-                text = text + newLineString;
+                text = text + this.newLineCharacter;
             }
             return text;
         }
@@ -300,8 +301,9 @@ namespace ts.textChanges {
     }
 
     export function getNonformattedText(node: Node, sourceFile: SourceFile, newLine: NewLineKind): NonFormattedText {
-        const writer = new Writer(getNewLineCharacter(newLine));
-        const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
+        const options = { newLine, target: sourceFile.languageVersion };
+        const writer = new Writer(getNewLineCharacter(options));
+        const printer = createPrinter(options, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
         return { text: writer.getText(), node: assignPositionsToNode(node) };
     }
