@@ -714,8 +714,7 @@ namespace ts {
 
         /** enum E */
         export const enumElement = "enum";
-        // TODO: GH#9983
-        export const enumMemberElement = "const";
+        export const enumMemberElement = "enum member";
 
         /**
          * Inside module and script only
