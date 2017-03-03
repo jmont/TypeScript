@@ -287,6 +287,7 @@ namespace ts.formatting {
                     case SyntaxKind.MethodDeclaration:
                     case SyntaxKind.MethodSignature:
                     case SyntaxKind.CallSignature:
+                    case SyntaxKind.Constructor:
                     case SyntaxKind.ConstructSignature: {
                         const start = node.getStart(sourceFile);
                         if ((<SignatureDeclaration>node.parent).typeParameters &&
