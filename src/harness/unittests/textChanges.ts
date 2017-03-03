@@ -50,6 +50,7 @@ namespace ts {
             return rulesProvider;
         }
 
+        // validate that positions that were recovered from the printed text actually match positions that will be created if the same text is parsed.
         function verifyPositions({ text, node }: textChanges.NonFormattedText): void {
             const nodeList = flattenNodes(node);
             const sourceFile = createSourceFile("f.ts", text, ScriptTarget.ES2015);

@@ -1,6 +1,10 @@
 /* @internal */
 namespace ts.textChanges {
 
+    /**
+     * Currently for simplicity we store recovered positions on the node itself.
+     * It can be changed to side-table later if we decide that current design is too invasive.
+     */
     function getPos(n: TextRange) {
         return (<any>n)["__pos"];
     }
@@ -79,6 +83,13 @@ namespace ts.textChanges {
         const fullStartLine = getLineStartPositionForPosition(fullStart, sourceFile);
         const startLine = getLineStartPositionForPosition(start, sourceFile);
         if (startLine === fullStartLine) {
+            // full start and start of the node are on the same line
+            //   a,     b;
+            //    ^     ^
+            //    |   start
+            // fullstart
+            // when b is replaced - we usually want to keep the leading trvia
+            // when b is deleted - we delete it
             return forDeleteOperation ? fullStart : start;
         }
         // get start position of the line following the line that contains fullstart position

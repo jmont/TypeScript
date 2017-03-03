@@ -2205,6 +2205,9 @@
     }
 
     /* @internal */
+    /**
+     * Subset of properties from SourceFile that are used in multiple utility functions
+     */
     export interface SourceFileLike {
         readonly text: string;
         lineMap: number[]
