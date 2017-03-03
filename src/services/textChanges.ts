@@ -67,7 +67,7 @@ namespace ts.textChanges {
         readonly options?: ChangeNodeOptions;
     }
 
-    export function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStart) {
+    export function getAdjustedStartPosition(sourceFile: SourceFile, node: Node, options: ConfigurableStart, forDeleteOperation: boolean) {
         if (options.useNonAdjustedStartPosition) {
             return node.getFullStart();
         }
@@ -79,7 +79,7 @@ namespace ts.textChanges {
         const fullStartLine = getLineStartPositionForPosition(fullStart, sourceFile);
         const startLine = getLineStartPositionForPosition(start, sourceFile);
         if (startLine === fullStartLine) {
-            return start;
+            return forDeleteOperation ? fullStart : start;
         }
         // get start position of the line following the line that contains fullstart position
         let adjustedStartPosition = getStartPositionOfLine(getLineOfLocalPosition(sourceFile, fullStartLine) + 1, sourceFile);
@@ -125,7 +125,7 @@ namespace ts.textChanges {
          * @param options - options to tweak deletion 
          */
         public deleteNode(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd = {}): void {
-            const startPosition = getAdjustedStartPosition(sourceFile, node, options);
+            const startPosition = getAdjustedStartPosition(sourceFile, node, options, /*forDeleteOperation*/ true);
             const endPosition = getAdjustedEndPosition(sourceFile, node, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
@@ -140,7 +140,7 @@ namespace ts.textChanges {
         }
 
         public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options: ConfigurableStartEnd = {}): void {
-            const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
+            const startPosition = getAdjustedStartPosition(sourceFile, startNode, options, /*forDeleteOperation*/ true);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
@@ -162,10 +162,10 @@ namespace ts.textChanges {
                 const nextToken = getTokenAtPosition(sourceFile, node.end);
                 if (nextToken && isSeparator(node, nextToken)) {
                     // find first non-whitespace position in the leading trivia of the node
-                    const startPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, node, {}), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+                    const startPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, node, {}, /*forDeleteOperation*/ true), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
                     const nextElement = containingList[index + 1];
                     /// find first non-whitespace position in the leading trivia of the next node
-                    const endPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, nextElement, {}), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
+                    const endPosition = skipTrivia(sourceFile.text, getAdjustedStartPosition(sourceFile, nextElement, {}, /*forDeleteOperation*/ true), /*stopAfterLineBreak*/ false, /*stopAtComments*/ true);
                     // shift next node so its first non-whitespace position will be moved to the first non-whitespace position of the deleted node
                     this.deleteRange(sourceFile, { pos: startPosition, end: endPosition });
                 }
@@ -183,13 +183,13 @@ namespace ts.textChanges {
         }
 
         public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
-            const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options);
+            const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options, /*forDeleteOperation*/ false);
             const endPosition = getAdjustedEndPosition(sourceFile, oldNode, options);
             this.changes.push({ sourceFile, options, oldNode, node: newNode, range: { pos: startPosition, end: endPosition } });
         }
 
         public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
-            const startPosition = getAdjustedStartPosition(sourceFile, startNode, options);
+            const startPosition = getAdjustedStartPosition(sourceFile, startNode, options, /*forDeleteOperation*/ false);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
             this.changes.push({ sourceFile, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endPosition } });
         }
@@ -199,7 +199,7 @@ namespace ts.textChanges {
         }
 
         public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options: InsertNodeOptions & ConfigurableStart = {}) {
-            const startPosition = getAdjustedStartPosition(sourceFile, before, options);
+            const startPosition = getAdjustedStartPosition(sourceFile, before, options, /*forDeleteOperation*/ false);
             this.changes.push({ sourceFile, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
         }
 

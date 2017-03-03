@@ -28,7 +28,7 @@ namespace ts.codefix {
                                         return deleteNode(forInitializer);
                                     }
                                     else {
-                                        return deleteNodeInList(token);
+                                        return deleteNodeInList(token.parent);
                                     }
 
                                 case SyntaxKind.ForOfStatement:
@@ -55,18 +55,25 @@ namespace ts.codefix {
                                         return deleteNode(variableStatement);
                                     }
                                     else {
-                                        return deleteNodeInList(token);
+                                        return deleteNodeInList(token.parent);
                                     }
                             }
 
                         case SyntaxKind.TypeParameter:
                             const typeParameters = (<DeclarationWithTypeParameters>token.parent.parent).typeParameters;
                             if (typeParameters.length === 1) {
-                                // delete the type parameter list
-                                return deleteRange(typeParameters);
+                                const previousToken = getTokenAtPosition(sourceFile, typeParameters.pos - 1);
+                                if (!previousToken || previousToken.kind !== SyntaxKind.LessThanToken) {
+                                    return deleteRange(typeParameters);
+                                }
+                                const nextToken = getTokenAtPosition(sourceFile, typeParameters.end);
+                                if (!nextToken || nextToken.kind !== SyntaxKind.GreaterThanToken) {
+                                    return deleteRange(typeParameters);
+                                }
+                                return deleteNodeRange(previousToken, nextToken);
                             }
                             else {
-                                return deleteNodeInList(token);
+                                return deleteNodeInList(token.parent);
                             }
 
                         case ts.SyntaxKind.Parameter:
@@ -75,7 +82,7 @@ namespace ts.codefix {
                                 return deleteNode(token.parent);
                             }
                             else {
-                                return deleteNodeInList(token);
+                                return deleteNodeInList(token.parent);
                             }
 
                         // handle case where 'import a = A;'
@@ -125,7 +132,7 @@ namespace ts.codefix {
                             else {
                                 const previousToken = getTokenAtPosition(sourceFile, namespaceImport.pos - 1);
                                 if (previousToken && previousToken.kind === SyntaxKind.CommaToken) {
-                                    const startPosition = textChanges.getAdjustedStartPosition(sourceFile, previousToken, {});
+                                    const startPosition = textChanges.getAdjustedStartPosition(sourceFile, previousToken, {}, /*forDeleteOperation*/ true);
                                     return deleteRange({ pos: startPosition, end: namespaceImport.end });
                                 }
                                 return deleteRange(namespaceImport)
@@ -200,6 +207,10 @@ namespace ts.codefix {
 
             function deleteNodeInList(n: Node) {
                 return makeChange(ct => ct.deleteNodeInList(sourceFile, n));
+            }
+
+            function deleteNodeRange(start: Node, end: Node) {
+                return makeChange(ct => ct.deleteNodeRange(sourceFile, start, end));
             }
 
             function replaceNode(n: Node, newNode: Node) {
