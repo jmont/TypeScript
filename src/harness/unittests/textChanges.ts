@@ -85,7 +85,7 @@ namespace ts {
                     assert.equal(changes.length, 1);
                     assert.equal(changes[0].fileName, sourceFile.fileName);
                     const modified = textChanges.applyChanges(sourceFile.text, changes[0].textChanges);
-                    return `===ORIGINAL===\r\n${text}\r\n===MODIFIED===\r\n${modified}`;
+                    return `===ORIGINAL===${newLineCharacter}${text}${newLineCharacter}===MODIFIED===${newLineCharacter}${modified}`;
                 });
             });
         }
