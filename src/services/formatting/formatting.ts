@@ -316,7 +316,7 @@ namespace ts.formatting {
 
     /* @internal */
     export function formatNode(node: Node, sourceFileLike: SourceFileLike, languageVariant: LanguageVariant, initialIndentation: number, delta: number,  rulesProvider: RulesProvider): TextChange[] {
-        const range = { pos: 0, end: sourceFileLike.text.length }
+        const range = { pos: 0, end: sourceFileLike.text.length };
         return formatSpanWorker(
             range,
             node,

@@ -22,10 +22,10 @@ namespace ts.textChanges {
     }
 
     export interface ConfigurableStart {
-        useNonAdjustedStartPosition?: boolean
+        useNonAdjustedStartPosition?: boolean;
     }
     export interface ConfigurableEnd {
-        useNonAdjustedEndPosition?: boolean
+        useNonAdjustedEndPosition?: boolean;
     }
 
     /**
@@ -131,34 +131,37 @@ namespace ts.textChanges {
             this.newLineCharacter = getNewLineCharacter({ newLine });
         }
 
-        public deleteNode(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd = {}): void {
+        public deleteNode(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, node, options, /*forDeleteOperation*/ true);
             const endPosition = getAdjustedEndPosition(sourceFile, node, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
+            return this;
         }
 
-        public deleteRange(sourceFile: SourceFile, range: TextRange): void {
+        public deleteRange(sourceFile: SourceFile, range: TextRange) {
             this.changes.push({ sourceFile, range });
+            return this;
         }
 
-        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options: ConfigurableStartEnd = {}): void {
+        public deleteNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, options: ConfigurableStartEnd = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options, /*forDeleteOperation*/ true);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
+            return this;
         }
 
-        public deleteNodeInList(sourceFile: SourceFile, node: Node): void {
+        public deleteNodeInList(sourceFile: SourceFile, node: Node) {
             const containingList = formatting.SmartIndenter.getContainingList(node, sourceFile);
             if (!containingList) {
                 return;
             }
             const index = containingList.indexOf(node);
             if (index < 0) {
-                return;
+                return this;
             }
             if (containingList.length === 1) {
                 this.deleteNode(sourceFile, node);
-                return;
+                return this;
             }
             if (index !== containingList.length - 1) {
                 const nextToken = getTokenAtPosition(sourceFile, node.end);
@@ -178,36 +181,43 @@ namespace ts.textChanges {
                     this.deleteNodeRange(sourceFile, previousToken, node);
                 }
             }
+            return this;
         }
 
-        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: InsertNodeOptions = {}): void {
+        public replaceRange(sourceFile: SourceFile, range: TextRange, newNode: Node, options: InsertNodeOptions = {}) {
             this.changes.push({ sourceFile, range, options, node: newNode });
+            return this;
         }
 
-        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
+        public replaceNode(sourceFile: SourceFile, oldNode: Node, newNode: Node, options: ChangeNodeOptions = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, oldNode, options, /*forDeleteOperation*/ false);
             const endPosition = getAdjustedEndPosition(sourceFile, oldNode, options);
             this.changes.push({ sourceFile, options, oldNode, node: newNode, range: { pos: startPosition, end: endPosition } });
+            return this;
         }
 
-        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}): void {
+        public replaceNodeRange(sourceFile: SourceFile, startNode: Node, endNode: Node, newNode: Node, options: ChangeNodeOptions = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, startNode, options, /*forDeleteOperation*/ false);
             const endPosition = getAdjustedEndPosition(sourceFile, endNode, options);
             this.changes.push({ sourceFile, options, oldNode: startNode, node: newNode, range: { pos: startPosition, end: endPosition } });
+            return this;
         }
 
-        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options: InsertNodeOptions = {}): void {
+        public insertNodeAt(sourceFile: SourceFile, pos: number, newNode: Node, options: InsertNodeOptions = {}) {
             this.changes.push({ sourceFile, options, node: newNode, range: { pos: pos, end: pos } });
+            return this;
         }
 
         public insertNodeBefore(sourceFile: SourceFile, before: Node, newNode: Node, options: InsertNodeOptions & ConfigurableStart = {}) {
             const startPosition = getAdjustedStartPosition(sourceFile, before, options, /*forDeleteOperation*/ false);
             this.changes.push({ sourceFile, options, oldNode: before, node: newNode, range: { pos: startPosition, end: startPosition } });
+            return this;
         }
 
         public insertNodeAfter(sourceFile: SourceFile, after: Node, newNode: Node, options: InsertNodeOptions & ConfigurableEnd = {}) {
             const endPosition = getAdjustedEndPosition(sourceFile, after, options);
             this.changes.push({ sourceFile, options, oldNode: after, node: newNode, range: { pos: endPosition, end: endPosition } });
+            return this;
         }
 
         public getChanges(): FileTextChanges[] {
@@ -217,7 +227,7 @@ namespace ts.textChanges {
                 let changesInFile = changesPerFile.get(c.sourceFile.path);
                 if (!changesInFile) {
                     changesPerFile.set(c.sourceFile.path, changesInFile = []);
-                }[]
+                };
                 changesInFile.push(c);
             }
             // convert changes
@@ -235,7 +245,7 @@ namespace ts.textChanges {
                     });
                 }
                 fileChangesList.push(fileTextChanges);
-            })
+            });
 
             return fileChangesList;
         }
@@ -314,7 +324,7 @@ namespace ts.textChanges {
             text: nonFormattedText.text,
             lineMap,
             getLineAndCharacterOfPosition: pos => computeLineAndCharacterOfPosition(lineMap, pos)
-        }
+        };
         const changes = formatting.formatNode(nonFormattedText.node, file, sourceFile.languageVariant, initialIndentation, delta, rulesProvider);
         return applyChanges(nonFormattedText.text, changes);
     }
@@ -322,7 +332,7 @@ namespace ts.textChanges {
     export function applyChanges(text: string, changes: TextChange[]): string {
         for (let i = changes.length - 1; i >= 0; i--) {
             const change = changes[i];
-            text = `${text.substring(0, change.span.start)}${change.newText}${text.substring(textSpanEnd(change.span))}`
+            text = `${text.substring(0, change.span.start)}${change.newText}${text.substring(textSpanEnd(change.span))}`;
         }
         return text;
     }
@@ -349,7 +359,7 @@ namespace ts.textChanges {
         resumeLexicalEnvironment: noop,
         startLexicalEnvironment: noop,
         suspendLexicalEnvironment: noop
-    }
+    };
 
     function assignPositionsToNode(node: Node): Node {
         const visited = visitEachChild(node, assignPositionsToNode, nullTransformationContext, assignPositionsToNodeArray);
@@ -385,7 +395,7 @@ namespace ts.textChanges {
         public readonly onAfterEmitNodeArray: PrintHandlers["onAfterEmitNodeArray"];
 
         constructor(newLine: string) {
-            this.writer = createTextWriter(newLine)
+            this.writer = createTextWriter(newLine);
             this.onEmitNode = (hint, node, printCallback) => {
                 setPos(node, this.lastNonTriviaPosition);
                 printCallback(hint, node);
@@ -393,7 +403,7 @@ namespace ts.textChanges {
             };
             this.onBeforeEmitNodeArray = nodes => {
                 if (nodes) {
-                    setPos(nodes, this.lastNonTriviaPosition)
+                    setPos(nodes, this.lastNonTriviaPosition);
                 }
             };
             this.onAfterEmitNodeArray = nodes => {

@@ -9,7 +9,7 @@ namespace ts {
 
             function find(node: Node): Node {
                 if (isDeclaration(node) && node.name && isIdentifier(node.name) && node.name.text === name) {
-                    return node
+                    return node;
                 }
                 else {
                     return forEachChild(node, find);
@@ -215,7 +215,7 @@ var a = 4; // comment 7
             });
         }
         function createTestVariableDeclaration(name: string) {
-            return createVariableDeclaration(name, /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true))
+            return createVariableDeclaration(name, /*type*/ undefined, createObjectLiteral([createPropertyAssignment("p1", createLiteral(1))], /*multiline*/ true));
         }
         function createTestClass() {
             return createClassDeclaration(
@@ -409,7 +409,7 @@ class A {
             });
         }
         {
-            const text = `var a = 1, b = 2, c = 3;`
+            const text = `var a = 1, b = 2, c = 3;`;
             runSingleFileTest("deleteNodeInList1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });
@@ -421,7 +421,7 @@ class A {
             });
         }
         {
-            const text = `var a = 1,b = 2,c = 3;`
+            const text = `var a = 1,b = 2,c = 3;`;
             runSingleFileTest("deleteNodeInList1_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });
@@ -438,7 +438,7 @@ namespace M {
     var a = 1,
         b = 2,
         c = 3;
-}`
+}`;
             runSingleFileTest("deleteNodeInList4", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });
@@ -457,7 +457,7 @@ namespace M {
         b = 2, // comment 3
         // comment 4
         c = 3; // comment 5
-}`
+}`;
             runSingleFileTest("deleteNodeInList4_1", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });
@@ -472,7 +472,7 @@ namespace M {
             const text = `
 function foo(a: number, b: string, c = true) {
     return 1;
-}`
+}`;
             runSingleFileTest("deleteNodeInList7", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });
@@ -487,7 +487,7 @@ function foo(a: number, b: string, c = true) {
             const text = `
 function foo(a: number,b: string,c = true) {
     return 1;
-}`
+}`;
             runSingleFileTest("deleteNodeInList10", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });
@@ -505,7 +505,7 @@ function foo(
     b: string,
     c = true) {
     return 1;
-}`
+}`;
             runSingleFileTest("deleteNodeInList13", noop, text, /*validateNodes*/ false, (sourceFile, changeTracker) => {
                 changeTracker.deleteNodeInList(sourceFile, findChild("a", sourceFile));
             });

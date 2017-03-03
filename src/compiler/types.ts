@@ -2210,7 +2210,7 @@
      */
     export interface SourceFileLike {
         readonly text: string;
-        lineMap: number[]
+        lineMap: number[];
     }
 
 

@@ -116,7 +116,7 @@ namespace ts.codefix {
                                 const nextToken = getTokenAtPosition(sourceFile, importClause.name.end);
                                 if (nextToken && nextToken.kind === SyntaxKind.CommaToken) {
                                     // shift first non-whitespace position after comma to the start position of the node
-                                    return deleteRange({ pos: start, end: skipTrivia(sourceFile.text, nextToken.end, /*stopAfterLineBreaks*/ false, /*stopAtComments*/true) })
+                                    return deleteRange({ pos: start, end: skipTrivia(sourceFile.text, nextToken.end, /*stopAfterLineBreaks*/ false, /*stopAtComments*/true) });
                                 }
                                 else {
                                     return deleteNode(importClause.name);
@@ -135,7 +135,7 @@ namespace ts.codefix {
                                     const startPosition = textChanges.getAdjustedStartPosition(sourceFile, previousToken, {}, /*forDeleteOperation*/ true);
                                     return deleteRange({ pos: startPosition, end: namespaceImport.end });
                                 }
-                                return deleteRange(namespaceImport)
+                                return deleteRange(namespaceImport);
                             }
                     }
                     break;
@@ -154,72 +154,27 @@ namespace ts.codefix {
                 return undefined;
             }
 
-            // function createCodeFixToRemoveNode(node: Node) {
-            //     let end = node.getEnd();
-            //     const endCharCode = sourceFile.text.charCodeAt(end);
-            //     const afterEndCharCode = sourceFile.text.charCodeAt(end + 1);
-            //     if (isLineBreak(endCharCode)) {
-            //         end += 1;
-            //     }
-            //     // in the case of CR LF, you could have two consecutive new line characters for one new line.
-            //     // this needs to be differenciated from two LF LF chars that actually mean two new lines.
-            //     if (isLineBreak(afterEndCharCode) && endCharCode !== afterEndCharCode) {
-            //         end += 1;
-            //     }
-
-            //     const start = node.getStart();
-            //     return createCodeFix("", start, end - start);
-            // }
-
-            // function findFirstNonSpaceCharPosStarting(start: number) {
-            //     while (isWhiteSpace(sourceFile.text.charCodeAt(start))) {
-            //         start += 1;
-            //     }
-            //     return start;
-            // }
-
-            // function createCodeFix(newText: string, start: number, length: number): CodeAction[] {
-            //     return [{
-            //         description: formatStringFromArgs(getLocaleSpecificMessage(Diagnostics.Remove_declaration_for_Colon_0), { 0: token.getText() }),
-            //         changes: [{
-            //             fileName: sourceFile.fileName,
-            //             textChanges: [{ newText, span: { start, length } }]
-            //         }]
-            //     }];
-            // }
-
-            // function removeSingleItem<T extends Node>(elements: NodeArray<T>, token: T): CodeAction[] {
-            //     if (elements[0] === token.parent) {
-            //         return createCodeFix("", token.parent.pos, token.parent.end - token.parent.pos + 1);
-            //     }
-            //     else {
-            //         return createCodeFix("", token.parent.pos - 1, token.parent.end - token.parent.pos + 1);
-            //     }
-            // }
-
             function deleteNode(n: Node) {
-                return makeChange(ct => ct.deleteNode(sourceFile, n));
+                return makeChange(textChanges.ChangeTracker.fromCodeFixContext(context).deleteNode(sourceFile, n));
             }
 
             function deleteRange(range: TextRange) {
-                return makeChange(ct => ct.deleteRange(sourceFile, range));
+                return makeChange(textChanges.ChangeTracker.fromCodeFixContext(context).deleteRange(sourceFile, range));
             }
 
             function deleteNodeInList(n: Node) {
-                return makeChange(ct => ct.deleteNodeInList(sourceFile, n));
+                return makeChange(textChanges.ChangeTracker.fromCodeFixContext(context).deleteNodeInList(sourceFile, n));
             }
 
             function deleteNodeRange(start: Node, end: Node) {
-                return makeChange(ct => ct.deleteNodeRange(sourceFile, start, end));
+                return makeChange(textChanges.ChangeTracker.fromCodeFixContext(context).deleteNodeRange(sourceFile, start, end));
             }
 
             function replaceNode(n: Node, newNode: Node) {
-                return makeChange(ct => ct.replaceNode(sourceFile, n, newNode));
+                return makeChange(textChanges.ChangeTracker.fromCodeFixContext(context).replaceNode(sourceFile, n, newNode));
             }
 
-            function makeChange(action: (changeTracker: textChanges.ChangeTracker) => void) {
-                const changeTracker = textChanges.ChangeTracker.fromCodeFixContext(context);
-                action(changeTracker);
+            function makeChange(changeTracker: textChanges.ChangeTracker) {
                 return [{
                     description: formatStringFromArgs(getLocaleSpecificMessage(Diagnostics.Remove_declaration_for_Colon_0), { 0: token.getText() }),
                     changes: changeTracker.getChanges()

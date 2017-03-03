@@ -1420,7 +1420,7 @@ namespace ts.server {
             const scriptInfo = project.getScriptInfoForNormalizedPath(file);
             const startPosition = getStartPosition();
             const endPosition = getEndPosition();
-            const formatOptions = this.projectService.getFormatCodeOptions(file)
+            const formatOptions = this.projectService.getFormatCodeOptions(file);
 
             const codeActions = project.getLanguageService().getCodeFixesAtPosition(file, startPosition, endPosition, args.errorCodes, formatOptions);
             if (!codeActions) {
