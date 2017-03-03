@@ -270,7 +270,7 @@ namespace ts.textChanges {
             // strip initial indentation (spaces or tabs) if text will be inserted in the middle of the line
             text = posStartsLine ? text : text.replace(/^\s+/, "");
 
-            const newLineString = getNewLineCharacter(this.newLine);
+            const newLineString = getNewLineCharacter({ newLine: this.newLine });
             if (options.insertLeadingNewLine) {
                 text = newLineString + text;
             }
