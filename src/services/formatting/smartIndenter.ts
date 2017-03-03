@@ -288,6 +288,7 @@ namespace ts.formatting {
                     case SyntaxKind.MethodSignature:
                     case SyntaxKind.CallSignature:
                     case SyntaxKind.Constructor:
+                    case SyntaxKind.ConstructorType:
                     case SyntaxKind.ConstructSignature: {
                         const start = node.getStart(sourceFile);
                         if ((<SignatureDeclaration>node.parent).typeParameters &&
@@ -299,6 +300,12 @@ namespace ts.formatting {
                         }
                         break;
                     }
+                    case SyntaxKind.ClassDeclaration:
+                        if ((<ClassDeclaration>node.parent).typeParameters &&
+                            rangeContainsStartEnd((<ClassDeclaration>node.parent).typeParameters, node.getStart(sourceFile), node.getEnd())) {
+                            return (<ClassDeclaration>node.parent).typeParameters;
+                        }
+                        break;
                     case SyntaxKind.NewExpression:
                     case SyntaxKind.CallExpression: {
                         const start = node.getStart(sourceFile);
