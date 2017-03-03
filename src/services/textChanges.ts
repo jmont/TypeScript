@@ -127,23 +127,12 @@ namespace ts.textChanges {
             this.newLineCharacter = getNewLineCharacter({ newLine });
         }
 
-        /**
-         * Records a change to remove a node from the file
-         * @param sourceFile - target source file (should be the same as node.getSourceFile)
-         * @param node - node to remove
-         * @param options - options to tweak deletion 
-         */
         public deleteNode(sourceFile: SourceFile, node: Node, options: ConfigurableStartEnd = {}): void {
             const startPosition = getAdjustedStartPosition(sourceFile, node, options, /*forDeleteOperation*/ true);
             const endPosition = getAdjustedEndPosition(sourceFile, node, options);
             this.changes.push({ sourceFile, options, range: { pos: startPosition, end: endPosition } });
         }
 
-        /**
-         * Records a change to remove a text range from the file
-         * @param _sourceFile - target source file
-         * @param range - range to remove
-         */
         public deleteRange(sourceFile: SourceFile, range: TextRange): void {
             this.changes.push({ sourceFile, range });
         }
