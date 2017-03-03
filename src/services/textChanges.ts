@@ -107,11 +107,13 @@ namespace ts.textChanges {
 
     export class ChangeTracker {
         private changes: Change[] = [];
+        private readonly newLineCharacter: string;
 
         constructor(
             private readonly newLine: NewLineKind,
             private readonly rulesProvider: formatting.RulesProvider,
             private readonly validator?: (text: NonFormattedText) => void) {
+            this.newLineCharacter = getNewLineCharacter({ newLine });
         }
 
         /**
@@ -270,12 +272,11 @@ namespace ts.textChanges {
             // strip initial indentation (spaces or tabs) if text will be inserted in the middle of the line
             text = posStartsLine ? text : text.replace(/^\s+/, "");
 
-            const newLineString = getNewLineCharacter({ newLine: this.newLine });
             if (options.insertLeadingNewLine) {
-                text = newLineString + text;
+                text = this.newLineCharacter + text;
             }
             if (options.insertTrailingNewLine) {
-                text = text + newLineString;
+                text = text + this.newLineCharacter;
             }
             return text;
         }
@@ -296,8 +297,9 @@ namespace ts.textChanges {
     }
 
     export function getNonformattedText(node: Node, sourceFile: SourceFile, newLine: NewLineKind): NonFormattedText {
-        const writer = new Writer(getNewLineCharacter(newLine));
-        const printer = createPrinter({ newLine, target: sourceFile.languageVersion }, writer);
+        const options = { newLine, target: sourceFile.languageVersion };
+        const writer = new Writer(getNewLineCharacter(options));
+        const printer = createPrinter(options, writer);
         printer.writeNode(EmitHint.Unspecified, node, sourceFile, writer);
         return { text: writer.getText(), node: assignPositionsToNode(node) };
     }
